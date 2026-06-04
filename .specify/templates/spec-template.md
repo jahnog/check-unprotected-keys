@@ -98,6 +98,17 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Non-Functional Requirements *(mandatory)*
+
+- **NFR-001**: Feature MUST preserve explicit boundaries between CLI
+  entrypoints, application services, domain logic, and infrastructure concerns.
+- **NFR-002**: Feature MUST describe required unit tests, any needed
+  integration or contract tests, and the expected coverage-report impact.
+- **NFR-003**: Feature MUST remain compliant with the project's linting,
+  formatting, and static analysis gates.
+- **NFR-004**: Feature MUST state whether standalone packaging, entry points,
+  release artifacts, or deployment documentation change.
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]

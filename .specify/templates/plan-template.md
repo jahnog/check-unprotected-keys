@@ -30,9 +30,13 @@
 
 **Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
 
+**Packaging/Distribution**: [e.g., console script, PyInstaller binary, PEX archive or NEEDS CLARIFICATION]
+
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
 
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
+
+**Quality Gates**: [e.g., pytest with coverage threshold, ruff check, ruff format --check, mypy or NEEDS CLARIFICATION]
 
 **Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
@@ -40,7 +44,18 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- Architecture keeps CLI adapters, application services, domain logic, and
+  infrastructure concerns separated; any non-trivial pattern choice is named
+  and justified.
+- Public interfaces, DTOs, and cross-module seams are typed and follow Clean
+  Code naming and responsibility rules.
+- Unit tests for new or changed behavior are identified, required integration
+  or contract tests are called out, and coverage reporting plus the enforced
+  threshold are documented.
+- Linting, formatting, and static analysis commands are listed exactly as they
+  will run in local and CI workflows.
+- Standalone executable packaging, artifact smoke tests, and deployment or
+  release impacts are documented.
 
 ## Project Structure
 
