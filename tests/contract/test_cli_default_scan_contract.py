@@ -10,8 +10,11 @@ from ..support.fixture_builders import (
     HOME_EXPANDED_FOLDER_PATTERN,
     PASSPHRASE,
     create_expanded_pattern_workspace,
+    create_recommendation_workspace,
     create_scan_workspace,
+    split_cli_streams,
     write_expanded_scan_configuration,
+    write_recommendation_scan_configuration,
     write_scan_configuration,
 )
 
@@ -89,6 +92,8 @@ def test_default_scan_contract_summarizes_malformed_and_unreadable_files(
     captured = capsys.readouterr()
 
     assert "Could not fully evaluate 1 malformed, 1 unreadable file(s)." in captured.err
+    assert str(workspace.malformed_key) in captured.err
+    assert str(workspace.malformed_key) not in captured.out
 
 
 def test_cli_returns_exit_code_two_when_configuration_is_missing(
@@ -151,3 +156,41 @@ def test_default_scan_contract_respects_expanded_catalog_overrides(
         str(workspace.home_ssh_finding),
         str(workspace.repo_key_finding),
     }
+
+
+def test_default_scan_contract_emits_usage_aware_remediation_guidance(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    workspace = create_recommendation_workspace(tmp_path / "workspace")
+    monkeypatch.setenv("HOME", str(workspace.home_root))
+    write_recommendation_scan_configuration(workspace.root)
+    monkeypatch.chdir(workspace.root)
+
+    exit_code = main([])
+    captured = capsys.readouterr()
+    stdout_lines, stderr_lines = split_cli_streams(captured.out, captured.err)
+    stderr_text = "\n".join(stderr_lines)
+
+    assert exit_code == 1
+    assert set(stdout_lines) == {
+        str(workspace.interactive_key),
+        str(workspace.host_key),
+        str(workspace.automation_key),
+        str(workspace.embedded_config_key),
+        str(workspace.unknown_key),
+    }
+    assert "Usage: interactive-user-key" not in captured.out
+    assert "ssh-agent" not in captured.out
+    assert f"Recommended protection for {workspace.interactive_key}:" in stderr_text
+    assert "Usage: interactive-user-key" in stderr_text
+    assert "Method: Passphrase plus session agent" in stderr_text
+    assert "Usage: ssh-host-key" in stderr_text
+    assert "Method: Reprovision as a managed host key" in stderr_text
+    assert "Usage: automation-or-deployment-key" in stderr_text
+    assert "Method: Move to a managed secret or identity" in stderr_text
+    assert "Usage: embedded-config-secret" in stderr_text
+    assert "Method: Externalize the embedded private key" in stderr_text
+    assert "Usage: unknown" in stderr_text
+    assert "Method: Classify usage before choosing a protection path" in stderr_text
