@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
-shell commands, quality gates, and other important information, read the
-current plan and the project constitution
+shell commands, and other important information, read the current plan
+at specs/001-check-unprotected-keys/plan.md
 <!-- SPECKIT END -->
