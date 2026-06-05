@@ -10,6 +10,7 @@ from find_unencrypted_keys.domain.classification import is_finding
 from find_unencrypted_keys.domain.models import ProtectionClassification
 
 from ..support.fixture_builders import (
+    create_expanded_noise_workspace,
     write_openssh_private_key,
     write_pem_private_key,
     write_public_key,
@@ -150,3 +151,27 @@ def test_putty_private_key_without_encryption_header_is_classified_as_malformed(
     assessment = inspect_candidate_file(candidate)
 
     assert assessment.classification == ProtectionClassification.MALFORMED
+
+
+def test_public_key_with_expanded_identity_name_is_classified_as_public_only(
+    tmp_path: Path,
+) -> None:
+    workspace = create_expanded_noise_workspace(tmp_path / "workspace")
+    assert workspace.repo_public_only is not None
+
+    assessment = inspect_candidate_file(workspace.repo_public_only)
+
+    assert assessment.classification == ProtectionClassification.PUBLIC_ONLY
+    assert not is_finding(assessment)
+
+
+def test_malformed_key_with_expanded_key_extension_is_not_reported(
+    tmp_path: Path,
+) -> None:
+    workspace = create_expanded_noise_workspace(tmp_path / "workspace")
+    assert workspace.repo_malformed_key is not None
+
+    assessment = inspect_candidate_file(workspace.repo_malformed_key)
+
+    assert assessment.classification == ProtectionClassification.MALFORMED
+    assert not is_finding(assessment)

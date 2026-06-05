@@ -1,3 +1,5 @@
 {
-  "feature_directory": "specs/001-check-unprotected-keys"
+  "feature_directory": "specs/002-expand-secret-patterns"
+{
+  "feature_directory": "specs/002-expand-secret-patterns"
 }
