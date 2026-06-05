@@ -201,8 +201,12 @@ def test_emit_scan_result_writes_summary_and_findings() -> None:
                 classification=ProtectionClassification.UNPROTECTED,
             )
         ],
-        malformed_count=1,
         unreadable_count=1,
+    )
+    result.record_malformed(
+        file_path="/tmp/malformed.key",
+        matched_folder_pattern="fixtures/default-scope",
+        matched_filename_pattern="*.key",
     )
 
     emit_scan_result(result, stdout=stdout, stderr=stderr)
