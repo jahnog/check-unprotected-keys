@@ -28,7 +28,7 @@ Create `.find-unencrypted-keys.toml` in the project root:
 [scan]
 folder_patterns = [
   "tests/fixtures/default-scope",
-  "tests/fixtures/shared/.ssh"
+  "tests/fixtures/protected-only"
 ]
 
 filename_patterns = [
@@ -57,12 +57,12 @@ Expected outcome:
 ## Validation Scenario 2: Start-Folder Narrowing
 
 ```bash
-find-unencrypted-keys --start-folder tests/fixtures/team-a
+find-unencrypted-keys --start-folder tests/fixtures/default-scope/team-a
 ```
 
 Expected outcome:
 
-- Only findings under `tests/fixtures/team-a` are reported.
+- Only findings under `tests/fixtures/default-scope/team-a` are reported.
 - The same configured filename patterns still govern file selection.
 - No files outside the supplied start folder are scanned or reported.
 
@@ -78,6 +78,33 @@ Expected outcome:
 - Any malformed or unreadable fixtures are summarized without being treated as
   findings.
 - The command exits with code `0` when no affected file exists in scope.
+
+## Validation Scenario 4: Configuration-Driven Scope Updates
+
+Update `.find-unencrypted-keys.toml` without changing application code:
+
+```toml
+[scan]
+folder_patterns = [
+  "tests/fixtures/default-scope",
+  "/absolute/path/to/repo/tests/fixtures/default-scope"
+]
+
+filename_patterns = [
+  "id_*",
+  "*_private.pem",
+  "*.ppk"
+]
+```
+
+Expected outcome:
+
+- Overlapping relative and absolute folder patterns collapse to one canonical
+  scan root.
+- The next scan includes `*_private.pem` and `*.ppk` files immediately, without
+  any code change.
+- File findings remain deduplicated even when multiple folder patterns reach the
+  same file.
 
 ## Quality Gates
 
@@ -98,6 +125,7 @@ Expected outcome:
 python -m build
 pyinstaller --noconfirm --clean --onefile src/find_unencrypted_keys/cli.py --name find-unencrypted-keys
 ./dist/find-unencrypted-keys --start-folder tests/fixtures/team-a
+./dist/find-unencrypted-keys --start-folder tests/fixtures/default-scope/team-a
 ```
 
 Expected outcome:

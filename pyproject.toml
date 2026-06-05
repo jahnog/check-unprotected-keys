@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=80.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "find-unencrypted-keys"
+version = "0.1.0"
+description = "Standalone CLI scanner for unprotected private keys"
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography>=45.0,<46.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "bcrypt>=4.1,<5.0",
+    "build>=1.2,<2.0",
+    "pyinstaller>=6.15,<7.0",
+    "pyright>=1.1.400,<2.0",
+    "pytest>=8.4,<9.0",
+    "pytest-cov>=6.2,<7.0",
+    "ruff>=0.12,<0.13",
+]
+
+[project.scripts]
+find-unencrypted-keys = "find_unencrypted_keys.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["find_unencrypted_keys"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["B", "C4", "E", "F", "I", "SIM", "UP"]
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "double"

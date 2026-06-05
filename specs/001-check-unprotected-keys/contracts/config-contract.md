@@ -56,3 +56,26 @@ filename_patterns = [
 - A start-folder override narrows only the reachable folder matches beneath the
   supplied path.
 - Filename matching remains exactly the same after start-folder narrowing.
+
+## Effective Scope Examples
+
+Duplicate folder patterns are allowed and collapse to one canonical root during
+effective-scope resolution.
+
+```toml
+[scan]
+folder_patterns = [
+  "fixtures/config-scope",
+  "/absolute/path/to/project/fixtures/config-scope"
+]
+
+filename_patterns = [
+  "id_*",
+  "id_*",
+  "*_private.pem"
+]
+```
+
+With this configuration, the next scan evaluates one canonical
+`fixtures/config-scope` root and applies both filename patterns without any
+code change.

@@ -1,0 +1,14 @@
+[scan]
+folder_patterns = [
+  "tests/fixtures/default-scope",
+  "tests/fixtures/protected-only"
+]
+
+filename_patterns = [
+  "id_*",
+  "*.ppk",
+  ".env",
+  ".env.*",
+  "*_private.pem",
+  "*_private.key"
+]
