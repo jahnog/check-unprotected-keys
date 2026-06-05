@@ -26,7 +26,7 @@ from find_unencrypted_keys.domain.scope import (
 
 
 def test_load_search_configuration_rejects_missing_scan_table(tmp_path: Path) -> None:
-    config_path = tmp_path / ".find-unencrypted-keys.toml"
+    config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text("[other]\nvalue = 1\n", encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match=r"must define a \[scan\] table"):
@@ -34,7 +34,7 @@ def test_load_search_configuration_rejects_missing_scan_table(tmp_path: Path) ->
 
 
 def test_load_search_configuration_rejects_non_string_pattern(tmp_path: Path) -> None:
-    config_path = tmp_path / ".find-unencrypted-keys.toml"
+    config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text(
         '[scan]\nfolder_patterns = [1]\nfilename_patterns = ["id_*"]\n',
         encoding="utf-8",
@@ -47,7 +47,7 @@ def test_load_search_configuration_rejects_non_string_pattern(tmp_path: Path) ->
 
 
 def test_load_search_configuration_rejects_invalid_toml(tmp_path: Path) -> None:
-    config_path = tmp_path / ".find-unencrypted-keys.toml"
+    config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text("[scan\nfolder_patterns = []\n", encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match="not valid TOML"):

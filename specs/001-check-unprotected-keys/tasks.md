@@ -91,7 +91,7 @@
 
 **Goal**: Make folder and filename patterns fully configuration-driven, including overlap handling and deduplicated candidate discovery.
 
-**Independent Test**: Modify `.find-unencrypted-keys.toml` fixtures to add and remove folder and filename patterns, rerun the scanner, and confirm the next scan reflects the updated scope without code changes.
+**Independent Test**: Modify `.check-unprotected-keys.toml` fixtures to add and remove folder and filename patterns, rerun the scanner, and confirm the next scan reflects the updated scope without code changes.
 
 ### Tests for User Story 3
 

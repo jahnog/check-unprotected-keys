@@ -23,7 +23,7 @@ classification; Python standard library modules `argparse`, `pathlib`,
 `fnmatch`, and `tomllib`; `PyInstaller` for standalone release artifact builds
 
 **Storage**: N/A; read-only local filesystem plus a root-level
-`.find-unencrypted-keys.toml` configuration file
+`.check-unprotected-keys.toml` configuration file
 
 **Testing**: `pytest`, `pytest-cov`, fixture-based unit tests, integration
 tests, and contract checks for CLI and configuration behavior

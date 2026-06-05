@@ -32,7 +32,7 @@ the application with `setuptools` and smoke-test a `PyInstaller` executable.
 
 ## Configuration and Scope Resolution
 
-**Decision**: Store scan rules in a root-level `.find-unencrypted-keys.toml`
+**Decision**: Store scan rules in a root-level `.check-unprotected-keys.toml`
 file with `folder_patterns` and `filename_patterns`; resolve folder patterns
 relative to the execution root unless they are absolute; when `--start-folder`
 is provided, narrow only the configured folder matches beneath that folder and

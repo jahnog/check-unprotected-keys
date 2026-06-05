@@ -108,7 +108,7 @@ def test_cli_returns_exit_code_two_for_invalid_configuration(
     monkeypatch,
     capsys,
 ) -> None:
-    config_path = tmp_path / ".find-unencrypted-keys.toml"
+    config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text(
         '[scan]\nfolder_patterns = ["   " ]\nfilename_patterns = ["id_*"]\n',
         encoding="utf-8",

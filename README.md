@@ -1,6 +1,6 @@
 # Find Unencrypted Keys
 
-`find-unencrypted-keys` is a standalone Python CLI that scans configured
+`check-unprotected-keys` is a standalone Python CLI that scans configured
 folders for private keys that are unprotected or protected with an empty
 passphrase. It prints only canonical absolute file paths for affected files and
 keeps stderr output limited to operator-safe summaries.
@@ -23,7 +23,7 @@ pip install -e .[dev]
 Copy the example config and adjust the folder patterns for your environment:
 
 ```bash
-cp .find-unencrypted-keys.toml.example .find-unencrypted-keys.toml
+cp .check-unprotected-keys.toml.example .check-unprotected-keys.toml
 ```
 
 Example configuration:
@@ -50,13 +50,13 @@ filename_patterns = [
 Run the default configured scan:
 
 ```bash
-find-unencrypted-keys
+check-unprotected-keys
 ```
 
 Narrow the scan to a subtree without changing filename matching:
 
 ```bash
-find-unencrypted-keys --start-folder tests/fixtures/default-scope/team-a
+check-unprotected-keys --start-folder tests/fixtures/default-scope/team-a
 ```
 
 Exit codes:

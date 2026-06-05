@@ -1,4 +1,4 @@
-"""Top-level package for the find-unencrypted-keys CLI."""
+"""Top-level package for the check-unprotected-keys CLI."""
 
 __all__ = ["__version__"]
 

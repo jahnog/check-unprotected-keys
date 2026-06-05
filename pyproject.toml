@@ -3,7 +3,7 @@ requires = ["setuptools>=80.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "find-unencrypted-keys"
+name = "check-unprotected-keys"
 version = "0.1.0"
 description = "Standalone CLI scanner for unprotected private keys"
 requires-python = ">=3.12"
@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-find-unencrypted-keys = "find_unencrypted_keys.cli:main"
+check-unprotected-keys = "find_unencrypted_keys.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

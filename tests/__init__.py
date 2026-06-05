@@ -1,3 +1,3 @@
-"""Test suite for find-unencrypted-keys."""
+"""Test suite for check-unprotected-keys."""
 
-"""Test package for find-unencrypted-keys."""
+"""Test package for check-unprotected-keys."""

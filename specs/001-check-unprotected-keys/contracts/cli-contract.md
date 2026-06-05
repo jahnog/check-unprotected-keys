@@ -2,7 +2,7 @@
 
 ## Command
 
-`find-unencrypted-keys [--start-folder PATH]`
+`check-unprotected-keys [--start-folder PATH]`
 
 ## Purpose
 
@@ -22,7 +22,7 @@ keys.
 
 ## Runtime Configuration
 
-- The command loads `.find-unencrypted-keys.toml` from the execution root.
+- The command loads `.check-unprotected-keys.toml` from the execution root.
 - Configuration load or validation failures are treated as invocation errors.
 
 ## Output Contract

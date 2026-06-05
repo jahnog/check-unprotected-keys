@@ -9,7 +9,7 @@ from typing import Any
 from find_unencrypted_keys.config.models import ScanConfigSection
 from find_unencrypted_keys.domain.models import SearchConfiguration
 
-DEFAULT_CONFIG_FILENAME = ".find-unencrypted-keys.toml"
+DEFAULT_CONFIG_FILENAME = ".check-unprotected-keys.toml"
 
 
 class ConfigurationError(ValueError):
@@ -29,7 +29,7 @@ def load_search_configuration(
     if not config_path.is_file():
         raise ConfigurationError(
             f"Configuration file not found: {config_path}. "
-            "Create .find-unencrypted-keys.toml before running the scanner."
+            "Create .check-unprotected-keys.toml before running the scanner."
         )
 
     try:

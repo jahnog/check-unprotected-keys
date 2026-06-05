@@ -141,7 +141,7 @@ def write_scan_configuration(
 ) -> Path:
     """Write the scanner TOML configuration in the workspace root."""
 
-    config_path = root / ".find-unencrypted-keys.toml"
+    config_path = root / ".check-unprotected-keys.toml"
     folder_entries = "\n".join(f'  "{pattern}",' for pattern in folder_patterns)
     filename_entries = "\n".join(f'  "{pattern}",' for pattern in filename_patterns)
 

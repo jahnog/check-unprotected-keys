@@ -7,7 +7,7 @@ derive the scan scope.
 
 **Fields**:
 
-- `config_file_path`: canonical path to `.find-unencrypted-keys.toml`
+- `config_file_path`: canonical path to `.check-unprotected-keys.toml`
 - `execution_root`: canonical path used as the default scan root
 - `folder_patterns`: ordered list of non-empty folder glob strings
 - `filename_patterns`: ordered list of non-empty filename glob strings

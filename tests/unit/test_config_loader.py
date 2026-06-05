@@ -17,7 +17,7 @@ def test_load_search_configuration_trims_patterns_and_resolves_execution_root(
 ) -> None:
     absolute_scope = (tmp_path / "absolute-scope").resolve()
     absolute_scope.mkdir()
-    config_path = tmp_path / ".find-unencrypted-keys.toml"
+    config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text(
         f"""
 [scan]
@@ -41,7 +41,7 @@ filename_patterns = ["  id_*  ", "  *.ppk  "]
 def test_load_search_configuration_rejects_missing_filename_patterns(
     tmp_path: Path,
 ) -> None:
-    config_path = tmp_path / ".find-unencrypted-keys.toml"
+    config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text(
         '[scan]\nfolder_patterns = ["fixtures/default-scope"]\n',
         encoding="utf-8",
@@ -56,7 +56,7 @@ def test_load_search_configuration_rejects_missing_filename_patterns(
 def test_load_search_configuration_rejects_blank_filename_pattern(
     tmp_path: Path,
 ) -> None:
-    config_path = tmp_path / ".find-unencrypted-keys.toml"
+    config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text(
         "[scan]\n"
         'folder_patterns = ["fixtures/default-scope"]\n'
@@ -73,7 +73,7 @@ def test_load_search_configuration_rejects_blank_filename_pattern(
 def test_load_search_configuration_allows_duplicate_patterns_for_later_dedup(
     tmp_path: Path,
 ) -> None:
-    config_path = tmp_path / ".find-unencrypted-keys.toml"
+    config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text(
         (
             "[scan]\n"

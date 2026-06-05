@@ -2,7 +2,7 @@
 
 ## File Location
 
-`.find-unencrypted-keys.toml` in the execution root.
+`.check-unprotected-keys.toml` in the execution root.
 
 ## Schema
 

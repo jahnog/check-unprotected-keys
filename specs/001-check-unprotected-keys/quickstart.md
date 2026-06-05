@@ -22,7 +22,7 @@ source .venv/bin/activate
 pip install -e .[dev]
 ```
 
-Create `.find-unencrypted-keys.toml` in the project root:
+Create `.check-unprotected-keys.toml` in the project root:
 
 ```toml
 [scan]
@@ -44,7 +44,7 @@ filename_patterns = [
 ## Validation Scenario 1: Default-Root Scan
 
 ```bash
-find-unencrypted-keys
+check-unprotected-keys
 ```
 
 Expected outcome:
@@ -57,7 +57,7 @@ Expected outcome:
 ## Validation Scenario 2: Start-Folder Narrowing
 
 ```bash
-find-unencrypted-keys --start-folder tests/fixtures/default-scope/team-a
+check-unprotected-keys --start-folder tests/fixtures/default-scope/team-a
 ```
 
 Expected outcome:
@@ -69,7 +69,7 @@ Expected outcome:
 ## Validation Scenario 3: Clean Scope
 
 ```bash
-find-unencrypted-keys --start-folder tests/fixtures/protected-only
+check-unprotected-keys --start-folder tests/fixtures/protected-only
 ```
 
 Expected outcome:
@@ -81,7 +81,7 @@ Expected outcome:
 
 ## Validation Scenario 4: Configuration-Driven Scope Updates
 
-Update `.find-unencrypted-keys.toml` without changing application code:
+Update `.check-unprotected-keys.toml` without changing application code:
 
 ```toml
 [scan]
@@ -123,9 +123,9 @@ Expected outcome:
 
 ```bash
 python -m build
-pyinstaller --noconfirm --clean --onefile src/find_unencrypted_keys/cli.py --name find-unencrypted-keys
-./dist/find-unencrypted-keys --start-folder tests/fixtures/team-a
-./dist/find-unencrypted-keys --start-folder tests/fixtures/default-scope/team-a
+pyinstaller --noconfirm --clean --onefile src/find_unencrypted_keys/cli.py --name check-unprotected-keys
+./dist/check-unprotected-keys --start-folder tests/fixtures/team-a
+./dist/check-unprotected-keys --start-folder tests/fixtures/default-scope/team-a
 ```
 
 Expected outcome:

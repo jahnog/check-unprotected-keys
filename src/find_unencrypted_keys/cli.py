@@ -20,7 +20,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     """Create the command-line argument parser."""
 
     parser = argparse.ArgumentParser(
-        prog="find-unencrypted-keys",
+        prog="check-unprotected-keys",
         description=(
             "Scan configured folders and filename patterns for unprotected "
             "private keys."
