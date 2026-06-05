@@ -7,8 +7,11 @@ from pathlib import Path
 from find_unencrypted_keys.cli import main
 
 from ..support.fixture_builders import (
+    HOME_EXPANDED_FOLDER_PATTERN,
     PASSPHRASE,
+    create_expanded_pattern_workspace,
     create_scan_workspace,
+    write_expanded_scan_configuration,
     write_scan_configuration,
 )
 
@@ -121,3 +124,30 @@ def test_cli_returns_exit_code_two_for_invalid_configuration(
     assert exit_code == 2
     assert captured.out == ""
     assert "scan.folder_patterns[1] must not be blank" in captured.err
+
+
+def test_default_scan_contract_respects_expanded_catalog_overrides(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    workspace = create_expanded_pattern_workspace(tmp_path / "workspace")
+    monkeypatch.setenv("HOME", str(workspace.home_root))
+    write_expanded_scan_configuration(
+        workspace.root,
+        folder_patterns=(
+            HOME_EXPANDED_FOLDER_PATTERN,
+            "fixtures/expanded-patterns/repo-keys",
+        ),
+        filename_patterns=("id_*", "*.pem"),
+    )
+
+    monkeypatch.chdir(workspace.root)
+    exit_code = main([])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert set(captured.out.splitlines()) == {
+        str(workspace.home_ssh_finding),
+        str(workspace.repo_key_finding),
+    }

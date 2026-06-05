@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from find_unencrypted_keys.adapters.filesystem import resolve_effective_scope
 from find_unencrypted_keys.adapters.reporting import emit_error, emit_scan_result
 from find_unencrypted_keys.config.loader import (
     ConfigurationError,
@@ -22,6 +23,12 @@ from find_unencrypted_keys.domain.scope import (
     build_effective_scope,
     narrow_root_directories,
     resolve_start_folder,
+)
+from tests.support.fixture_builders import (
+    HOME_EXPANDED_FOLDER_PATTERN,
+    create_expanded_pattern_workspace,
+    write_expanded_scan_configuration,
+    write_scan_configuration,
 )
 
 
@@ -110,6 +117,77 @@ def test_build_effective_scope_canonicalizes_paths(tmp_path: Path) -> None:
 
     assert scope.root_directories == (tmp_path.resolve(),)
     assert scope.canonical_root_set == frozenset({tmp_path.resolve()})
+
+
+def test_resolve_effective_scope_expands_home_roots_and_deduplicates_them(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    workspace = create_expanded_pattern_workspace(tmp_path / "workspace")
+    monkeypatch.setenv("HOME", str(workspace.home_root))
+    write_scan_configuration(
+        workspace.root,
+        folder_patterns=(
+            HOME_EXPANDED_FOLDER_PATTERN,
+            str(workspace.home_ssh_root),
+            "fixtures/expanded-patterns/repo-keys",
+        ),
+        filename_patterns=("id_*", "*.pem"),
+    )
+    configuration = load_search_configuration(workspace.root)
+
+    scope = resolve_effective_scope(configuration, start_folder=None)
+
+    assert scope.root_directories == (
+        workspace.home_ssh_root,
+        workspace.repo_keys_root,
+    )
+    assert scope.canonical_root_set == frozenset(
+        {workspace.home_ssh_root, workspace.repo_keys_root}
+    )
+
+
+def test_write_expanded_scan_configuration_uses_home_and_repo_roots(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    workspace = create_expanded_pattern_workspace(tmp_path / "workspace")
+    monkeypatch.setenv("HOME", str(workspace.home_root))
+    write_expanded_scan_configuration(workspace.root)
+    configuration = load_search_configuration(workspace.root)
+
+    scope = resolve_effective_scope(configuration, start_folder=None)
+
+    assert scope.root_directories == (
+        workspace.home_ssh_root,
+        workspace.repo_keys_root,
+        workspace.config_secrets_root,
+        workspace.infra_root,
+        workspace.vpn_root,
+    )
+
+
+def test_resolve_effective_scope_keeps_override_filename_patterns_after_narrowing(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    workspace = create_expanded_pattern_workspace(tmp_path / "workspace")
+    monkeypatch.setenv("HOME", str(workspace.home_root))
+    write_expanded_scan_configuration(
+        workspace.root,
+        folder_patterns=(
+            HOME_EXPANDED_FOLDER_PATTERN,
+            "fixtures/expanded-patterns/repo-keys",
+            "fixtures/expanded-patterns/vpn",
+        ),
+        filename_patterns=("*.pem", "*.ovpn"),
+    )
+    configuration = load_search_configuration(workspace.root)
+
+    scope = resolve_effective_scope(configuration, start_folder=workspace.vpn_root)
+
+    assert scope.root_directories == (workspace.vpn_root,)
+    assert scope.filename_patterns == ("*.pem", "*.ovpn")
 
 
 def test_emit_scan_result_writes_summary_and_findings() -> None:

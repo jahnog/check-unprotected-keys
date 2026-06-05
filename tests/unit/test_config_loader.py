@@ -10,6 +10,12 @@ from find_unencrypted_keys.config.loader import (
     ConfigurationError,
     load_search_configuration,
 )
+from tests.support.fixture_builders import (
+    EXPANDED_FILENAME_PATTERNS,
+    EXPANDED_FOLDER_PATTERNS,
+    create_expanded_pattern_workspace,
+    write_expanded_scan_configuration,
+)
 
 
 def test_load_search_configuration_trims_patterns_and_resolves_execution_root(
@@ -90,3 +96,38 @@ def test_load_search_configuration_allows_duplicate_patterns_for_later_dedup(
         "fixtures/default-scope",
     )
     assert configuration.filename_patterns == ("id_*", "id_*")
+
+
+def test_load_search_configuration_preserves_tilde_prefixed_folder_patterns(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".check-unprotected-keys.toml"
+    config_path.write_text(
+        (
+            "[scan]\n"
+            'folder_patterns = ["  ~/.ssh  ", '
+            '"  fixtures/expanded-patterns/repo-keys  "]\n'
+            'filename_patterns = ["  *.pem  ", "  *.tfvars  "]\n'
+        ),
+        encoding="utf-8",
+    )
+
+    configuration = load_search_configuration(tmp_path)
+
+    assert configuration.folder_patterns == (
+        "~/.ssh",
+        "fixtures/expanded-patterns/repo-keys",
+    )
+    assert configuration.filename_patterns == ("*.pem", "*.tfvars")
+
+
+def test_load_search_configuration_reads_expanded_default_catalog(
+    tmp_path: Path,
+) -> None:
+    workspace = create_expanded_pattern_workspace(tmp_path / "workspace")
+    write_expanded_scan_configuration(workspace.root)
+
+    configuration = load_search_configuration(workspace.root)
+
+    assert configuration.folder_patterns == EXPANDED_FOLDER_PATTERNS
+    assert configuration.filename_patterns == EXPANDED_FILENAME_PATTERNS

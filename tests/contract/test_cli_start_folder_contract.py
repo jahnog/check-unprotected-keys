@@ -6,7 +6,9 @@ from pathlib import Path
 
 from find_unencrypted_keys.cli import main
 from tests.support.fixture_builders import (
+    create_expanded_pattern_workspace,
     create_start_folder_workspace,
+    write_expanded_scan_configuration,
     write_scan_configuration,
 )
 
@@ -64,3 +66,20 @@ def test_cli_start_folder_returns_exit_code_two_for_invalid_paths(
     assert exit_code == 2
     assert captured.out == ""
     assert "Start folder does not exist" in captured.err
+
+
+def test_cli_start_folder_reports_only_expanded_catalog_findings(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    workspace = create_expanded_pattern_workspace(tmp_path / "workspace")
+    monkeypatch.setenv("HOME", str(workspace.home_root))
+    write_expanded_scan_configuration(workspace.root)
+    monkeypatch.chdir(workspace.root)
+
+    exit_code = main(["--start-folder", "fixtures/expanded-patterns/infra"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert captured.out.splitlines() == [str(workspace.infra_secret_finding)]
