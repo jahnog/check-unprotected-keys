@@ -2,16 +2,25 @@
 
 from __future__ import annotations
 
+from io import StringIO
 from pathlib import Path
 
+from find_unencrypted_keys.adapters.reporting import emit_scan_result
 from find_unencrypted_keys.config.loader import load_search_configuration
-from find_unencrypted_keys.domain.models import ScanRequest
+from find_unencrypted_keys.domain.models import (
+    ProtectionClassification,
+    ScanRequest,
+    UsageCategory,
+)
 from find_unencrypted_keys.services.scan_service import ScanService
 from tests.support.fixture_builders import (
     HOME_EXPANDED_FOLDER_PATTERN,
     create_expanded_pattern_workspace,
+    create_recommendation_workspace,
     create_start_folder_workspace,
+    nonempty_output_lines,
     write_expanded_scan_configuration,
+    write_recommendation_scan_configuration,
     write_scan_configuration,
 )
 
@@ -31,12 +40,11 @@ def test_start_folder_scan_reports_only_nested_team_findings(tmp_path: Path) -> 
         )
     )
 
-    assert result.findings == [
-        type(result.findings[0])(
-            file_path=str(workspace.team_a_finding),
-            classification=result.findings[0].classification,
-        )
-    ]
+    assert len(result.findings) == 1
+    assert result.findings[0].file_path == str(workspace.team_a_finding)
+    assert result.findings[0].classification == ProtectionClassification.UNPROTECTED
+    assert result.findings[0].usage_category == UsageCategory.INTERACTIVE_USER_KEY
+    assert result.findings[0].remediation is not None
     assert result.files_scanned == 2
 
 
@@ -112,3 +120,33 @@ def test_start_folder_scan_respects_expanded_catalog_overrides(
     assert {finding.file_path for finding in result.findings} == {
         str(workspace.repo_key_finding)
     }
+
+
+def test_start_folder_guidance_stays_scoped_to_matching_subtree(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    workspace = create_recommendation_workspace(tmp_path / "workspace")
+    monkeypatch.setenv("HOME", str(workspace.home_root))
+    write_recommendation_scan_configuration(workspace.root)
+    configuration = load_search_configuration(workspace.root)
+
+    result = ScanService().run(
+        ScanRequest(
+            execution_root=workspace.root,
+            configuration=configuration,
+            start_folder=workspace.repo_keys_root,
+        )
+    )
+
+    stdout = StringIO()
+    stderr = StringIO()
+    emit_scan_result(result, stdout=stdout, stderr=stderr)
+    stderr_text = stderr.getvalue()
+
+    assert result.files_scanned == 1
+    assert nonempty_output_lines(stdout.getvalue()) == (str(workspace.automation_key),)
+    assert f"Recommended protection for {workspace.automation_key}:" in stderr_text
+    assert "Usage: automation-or-deployment-key" in stderr_text
+    assert str(workspace.interactive_key) not in stderr_text
+    assert "Usage: interactive-user-key" not in stderr_text

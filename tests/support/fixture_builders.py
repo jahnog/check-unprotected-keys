@@ -42,6 +42,15 @@ EXPANDED_FILENAME_PATTERNS = (
     "*.ovpn",
     "*.tfvars",
 )
+REMEDIATION_FIXTURE_ROOT = "fixtures/remediation-guidance"
+REMEDIATION_FOLDER_PATTERNS = (
+    HOME_EXPANDED_FOLDER_PATTERN,
+    f"{REMEDIATION_FIXTURE_ROOT}/host-keys",
+    f"{REMEDIATION_FIXTURE_ROOT}/repo-keys",
+    f"{REMEDIATION_FIXTURE_ROOT}/config-secrets",
+    f"{REMEDIATION_FIXTURE_ROOT}/mixed",
+)
+REMEDIATION_FILENAME_PATTERNS = EXPANDED_FILENAME_PATTERNS
 
 
 @dataclass(slots=True)
@@ -111,6 +120,47 @@ class ExpandedPatternWorkspace:
     config_excluded_json: Path | None = None
 
 
+@dataclass(slots=True)
+class RemediationGuidanceWorkspace:
+    """A temporary workspace tailored for remediation-guidance scenarios."""
+
+    scan: ScanWorkspace
+
+    @property
+    def root(self) -> Path:
+        return self.scan.root
+
+    @property
+    def malformed_key(self) -> Path:
+        return self.scan.malformed_key
+
+    @property
+    def unreadable_key(self) -> Path:
+        return self.scan.unreadable_key
+
+    def restore_permissions(self) -> None:
+        self.scan.restore_permissions()
+
+
+@dataclass(slots=True)
+class RecommendationWorkspace:
+    """A temporary workspace that covers recommendation categories."""
+
+    root: Path
+    home_root: Path
+    home_ssh_root: Path
+    fixture_root: Path
+    host_keys_root: Path
+    repo_keys_root: Path
+    config_secrets_root: Path
+    mixed_root: Path
+    interactive_key: Path
+    host_key: Path
+    automation_key: Path
+    embedded_config_key: Path
+    unknown_key: Path
+
+
 def create_scan_workspace(root: Path) -> ScanWorkspace:
     """Create a temporary workspace with mixed protected and unprotected files."""
 
@@ -154,6 +204,62 @@ def create_scan_workspace(root: Path) -> ScanWorkspace:
         public_key=public_key.resolve(),
         malformed_key=malformed_key.resolve(),
         unreadable_key=unreadable_key.resolve(),
+    )
+
+
+def create_remediation_guidance_workspace(root: Path) -> RemediationGuidanceWorkspace:
+    """Create a workspace focused on malformed-path and reporting scenarios."""
+
+    return RemediationGuidanceWorkspace(scan=create_scan_workspace(root))
+
+
+def create_recommendation_workspace(root: Path) -> RecommendationWorkspace:
+    """Create a workspace that exercises all remediation categories."""
+
+    workspace_root = root.resolve()
+    fixture_root = workspace_root / REMEDIATION_FIXTURE_ROOT
+    home_root = workspace_root / "home"
+    home_ssh_root = home_root / ".ssh"
+    host_keys_root = fixture_root / "host-keys"
+    repo_keys_root = fixture_root / "repo-keys"
+    config_secrets_root = fixture_root / "config-secrets"
+    mixed_root = fixture_root / "mixed"
+
+    for directory in (
+        home_ssh_root,
+        host_keys_root,
+        repo_keys_root,
+        config_secrets_root,
+        mixed_root,
+    ):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    interactive_key = home_ssh_root / "id_ed25519"
+    host_key = host_keys_root / "ssh_host_ed25519_key"
+    automation_key = repo_keys_root / "deploy.pem"
+    embedded_config_key = config_secrets_root / "service.env"
+    unknown_key = mixed_root / "service_private.key"
+
+    write_openssh_private_key(interactive_key, encrypted=False)
+    write_openssh_private_key(host_key, encrypted=False)
+    write_pem_private_key(automation_key, encrypted=False)
+    write_embedded_private_key(embedded_config_key, encrypted=False)
+    write_pem_private_key(unknown_key, encrypted=False)
+
+    return RecommendationWorkspace(
+        root=workspace_root,
+        home_root=home_root.resolve(),
+        home_ssh_root=home_ssh_root.resolve(),
+        fixture_root=fixture_root.resolve(),
+        host_keys_root=host_keys_root.resolve(),
+        repo_keys_root=repo_keys_root.resolve(),
+        config_secrets_root=config_secrets_root.resolve(),
+        mixed_root=mixed_root.resolve(),
+        interactive_key=interactive_key.resolve(),
+        host_key=host_key.resolve(),
+        automation_key=automation_key.resolve(),
+        embedded_config_key=embedded_config_key.resolve(),
+        unknown_key=unknown_key.resolve(),
     )
 
 
@@ -331,6 +437,36 @@ def write_expanded_scan_configuration(
         folder_patterns=folder_patterns,
         filename_patterns=filename_patterns,
     )
+
+
+def write_recommendation_scan_configuration(
+    root: Path,
+    *,
+    folder_patterns: tuple[str, ...] = REMEDIATION_FOLDER_PATTERNS,
+    filename_patterns: tuple[str, ...] = REMEDIATION_FILENAME_PATTERNS,
+) -> Path:
+    """Write the guidance-focused configuration used by recommendation tests."""
+
+    return write_scan_configuration(
+        root,
+        folder_patterns=folder_patterns,
+        filename_patterns=filename_patterns,
+    )
+
+
+def nonempty_output_lines(text: str) -> tuple[str, ...]:
+    """Return non-empty output lines for stdout/stderr assertions."""
+
+    return tuple(line for line in text.splitlines() if line)
+
+
+def split_cli_streams(
+    stdout: str,
+    stderr: str,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Normalize stdout and stderr into non-empty line tuples."""
+
+    return nonempty_output_lines(stdout), nonempty_output_lines(stderr)
 
 
 def write_pem_private_key(path: Path, *, encrypted: bool) -> None:

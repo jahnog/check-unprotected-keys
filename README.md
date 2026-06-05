@@ -3,7 +3,8 @@
 `check-unprotected-keys` is a standalone Python CLI that scans configured
 folders for private keys that are unprotected or protected with an empty
 passphrase. It prints only canonical absolute file paths for affected files and
-keeps stderr output limited to operator-safe summaries.
+keeps stderr output limited to operator-safe summaries, malformed-file review
+paths, and usage-aware remediation guidance.
 
 The scanner is intentionally bounded to currently supported key material:
 PEM, OpenSSH, PuTTY, and supported key blocks embedded in matched text files.
@@ -111,11 +112,19 @@ Run the default configured scan:
 check-unprotected-keys
 ```
 
+Stdout remains scriptable: one canonical affected-file path per line. Stderr is
+reserved for the scan summary, malformed-file follow-up paths, and guidance
+such as session-agent recommendations for interactive SSH keys or vault-style
+recommendations for automation-oriented secrets.
+
 Narrow the scan to a subtree without changing filename matching:
 
 ```bash
 check-unprotected-keys --start-folder tests/fixtures/default-scope/team-a
 ```
+
+The `--start-folder` filter keeps the same stdout-only path contract and limits
+stderr guidance to findings reachable beneath the requested subtree.
 
 Exit codes:
 
