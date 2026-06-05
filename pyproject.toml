@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Standalone CLI scanner for unprotected private keys"
 requires-python = ">=3.12"
 dependencies = [
-    "cryptography>=45.0,<46.0",
+    "cryptography>=46.0.7,<47.0",
 ]
 
 [project.optional-dependencies]
@@ -17,7 +17,7 @@ dev = [
     "build>=1.2,<2.0",
     "pyinstaller>=6.15,<7.0",
     "pyright>=1.1.400,<2.0",
-    "pytest>=8.4,<9.0",
+    "pytest>=9.0.3,<10.0",
     "pytest-cov>=6.2,<7.0",
     "ruff>=0.12,<0.13",
 ]
