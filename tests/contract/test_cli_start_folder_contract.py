@@ -7,8 +7,11 @@ from pathlib import Path
 from find_unencrypted_keys.cli import main
 from tests.support.fixture_builders import (
     create_expanded_pattern_workspace,
+    create_recommendation_workspace,
     create_start_folder_workspace,
+    split_cli_streams,
     write_expanded_scan_configuration,
+    write_recommendation_scan_configuration,
     write_scan_configuration,
 )
 
@@ -83,3 +86,26 @@ def test_cli_start_folder_reports_only_expanded_catalog_findings(
 
     assert exit_code == 1
     assert captured.out.splitlines() == [str(workspace.infra_secret_finding)]
+
+
+def test_cli_start_folder_preserves_guidance_for_matching_subtree(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    workspace = create_recommendation_workspace(tmp_path / "workspace")
+    monkeypatch.setenv("HOME", str(workspace.home_root))
+    write_recommendation_scan_configuration(workspace.root)
+    monkeypatch.chdir(workspace.root)
+
+    exit_code = main(["--start-folder", "fixtures/remediation-guidance/repo-keys"])
+    captured = capsys.readouterr()
+    stdout_lines, stderr_lines = split_cli_streams(captured.out, captured.err)
+    stderr_text = "\n".join(stderr_lines)
+
+    assert exit_code == 1
+    assert stdout_lines == (str(workspace.automation_key),)
+    assert f"Recommended protection for {workspace.automation_key}:" in stderr_text
+    assert "Usage: automation-or-deployment-key" in stderr_text
+    assert str(workspace.interactive_key) not in stderr_text
+    assert "Usage: interactive-user-key" not in stderr_text

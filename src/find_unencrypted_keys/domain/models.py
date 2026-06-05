@@ -17,6 +17,16 @@ class ProtectionClassification(StrEnum):
     UNREADABLE = "unreadable"
 
 
+class UsageCategory(StrEnum):
+    """Operator-facing usage categories for remediation guidance."""
+
+    INTERACTIVE_USER_KEY = "interactive-user-key"
+    SSH_HOST_KEY = "ssh-host-key"
+    AUTOMATION_OR_DEPLOYMENT_KEY = "automation-or-deployment-key"
+    EMBEDDED_CONFIG_SECRET = "embedded-config-secret"
+    UNKNOWN = "unknown"
+
+
 class CandidateState(StrEnum):
     """Lifecycle states for a candidate file during a scan."""
 
@@ -77,11 +87,34 @@ class ProtectionAssessment:
 
 
 @dataclass(frozen=True, slots=True)
+class RemediationRecommendation:
+    """Operator-safe remediation guidance for one finding."""
+
+    usage_category: UsageCategory
+    title: str
+    summary: str
+    rationale: str
+    next_step_hint: str
+
+
+@dataclass(frozen=True, slots=True)
+class MalformedScanIssue:
+    """A candidate file that could not be fully parsed as supported key material."""
+
+    file_path: str
+    issue_type: str
+    matched_folder_pattern: str
+    matched_filename_pattern: str
+
+
+@dataclass(frozen=True, slots=True)
 class KeyFinding:
     """A file-level violation emitted to stdout."""
 
     file_path: str
     classification: ProtectionClassification
+    usage_category: UsageCategory | None = None
+    remediation: RemediationRecommendation | None = None
 
 
 @dataclass(slots=True)
@@ -90,13 +123,17 @@ class ScanResult:
 
     files_scanned: int = 0
     findings: list[KeyFinding] = field(default_factory=list)
-    malformed_count: int = 0
+    malformed_issues: list[MalformedScanIssue] = field(default_factory=list)
     unreadable_count: int = 0
     error_summaries: dict[str, int] = field(default_factory=dict)
 
     @property
     def exit_code(self) -> int:
         return 1 if self.findings else 0
+
+    @property
+    def malformed_count(self) -> int:
+        return len(self.malformed_issues)
 
     @property
     def safe_issue_breakdown(self) -> tuple[str, ...]:
@@ -110,16 +147,33 @@ class ScanResult:
         *,
         file_path: str,
         classification: ProtectionClassification,
+        usage_category: UsageCategory | None = None,
+        remediation: RemediationRecommendation | None = None,
     ) -> None:
         self.findings.append(
             KeyFinding(
                 file_path=file_path,
                 classification=classification,
+                usage_category=usage_category,
+                remediation=remediation,
             )
         )
 
-    def record_malformed(self) -> None:
-        self.malformed_count += 1
+    def record_malformed(
+        self,
+        *,
+        file_path: str,
+        matched_folder_pattern: str,
+        matched_filename_pattern: str,
+    ) -> None:
+        self.malformed_issues.append(
+            MalformedScanIssue(
+                file_path=file_path,
+                issue_type=ProtectionClassification.MALFORMED.value,
+                matched_folder_pattern=matched_folder_pattern,
+                matched_filename_pattern=matched_filename_pattern,
+            )
+        )
         self.record_issue(ProtectionClassification.MALFORMED.value)
 
     def record_unreadable(self, issue_type: str | None = None) -> None:

@@ -6,7 +6,7 @@ import sys
 from textwrap import dedent
 from typing import TextIO
 
-from find_unencrypted_keys.domain.models import ScanResult
+from find_unencrypted_keys.domain.models import KeyFinding, ScanResult
 
 
 def emit_scan_result(
@@ -31,22 +31,58 @@ def emit_scan_result(
         file=stderr_stream,
     )
 
-    if result.malformed_count or result.unreadable_count:
-        summary_parts = []
-        if result.malformed_count:
-            summary_parts.append(f"{result.malformed_count} malformed")
-        if result.unreadable_count:
-            summary_parts.append(f"{result.unreadable_count} unreadable")
-        print(
-            "Could not fully evaluate " + ", ".join(summary_parts) + " file(s).",
-            file=stderr_stream,
-        )
+    _emit_issue_summary(result, stderr_stream)
+    _emit_malformed_paths(result, stderr_stream)
+    _emit_remediation_guidance(result, stderr_stream)
 
     if result.safe_issue_breakdown:
         print(
             "Issue categories: " + ", ".join(result.safe_issue_breakdown),
             file=stderr_stream,
         )
+
+
+def _emit_issue_summary(result: ScanResult, stderr_stream: TextIO) -> None:
+    if not (result.malformed_count or result.unreadable_count):
+        return
+
+    summary_parts = []
+    if result.malformed_count:
+        summary_parts.append(f"{result.malformed_count} malformed")
+    if result.unreadable_count:
+        summary_parts.append(f"{result.unreadable_count} unreadable")
+    print(
+        "Could not fully evaluate " + ", ".join(summary_parts) + " file(s).",
+        file=stderr_stream,
+    )
+
+
+def _emit_malformed_paths(result: ScanResult, stderr_stream: TextIO) -> None:
+    for issue in result.malformed_issues:
+        print(issue.file_path, file=stderr_stream)
+
+
+def _emit_remediation_guidance(result: ScanResult, stderr_stream: TextIO) -> None:
+    for finding in result.findings:
+        if finding.remediation is None:
+            continue
+        for line in _render_recommendation_lines(finding):
+            print(line, file=stderr_stream)
+
+
+def _render_recommendation_lines(finding: KeyFinding) -> tuple[str, ...]:
+    remediation = finding.remediation
+    if remediation is None:
+        return ()
+
+    return (
+        f"Recommended protection for {finding.file_path}:",
+        f"Usage: {remediation.usage_category.value}",
+        f"Method: {remediation.title}",
+        f"Summary: {remediation.summary}",
+        f"Why: {remediation.rationale}",
+        f"Next: {remediation.next_step_hint}",
+    )
 
 
 def emit_error(message: str, *, stderr: TextIO | None = None) -> None:
