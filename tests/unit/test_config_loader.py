@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from find_unencrypted_keys.config.loader import (
+from check_unprotected_keys.config.loader import (
     ConfigurationError,
     load_search_configuration,
 )

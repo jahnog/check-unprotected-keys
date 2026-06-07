@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - master
+      - main
       - develop
 
 jobs:
@@ -22,25 +22,28 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[dev]
+        run: uv sync --extra dev
 
       - name: Run Ruff
-        run: ruff check .
+        run: uv run --extra dev ruff check .
 
       - name: Run Ruff format check
-        run: ruff format --check .
+        run: uv run --extra dev ruff format --check .
 
       - name: Run Pyright
-        run: pyright .
+        run: uv run python -m pyright .
 
       - name: Run pytest with coverage
-        run: pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85
+        run: uv run python -m pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85
 
       - name: Build distributions
-        run: python -m build
+        run: uv run python -m build
 
       - name: Smoke-test standalone executable
-        run: bash scripts/smoke_test_executable.sh
+        run: uv run bash scripts/smoke_test_executable.sh

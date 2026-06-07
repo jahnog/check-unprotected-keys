@@ -15,7 +15,7 @@
 - [X] T001 Initialize project metadata, runtime dependencies, dev dependencies, and console entry point in pyproject.toml
 - [X] T002 [P] Configure Ruff, pytest, coverage, setuptools, and build defaults in pyproject.toml
 - [X] T003 [P] Configure Pyright for src/ and tests/ in pyrightconfig.json
-- [X] T004 Create package marker modules in src/find_unencrypted_keys/__init__.py, src/find_unencrypted_keys/config/__init__.py, src/find_unencrypted_keys/domain/__init__.py, src/find_unencrypted_keys/services/__init__.py, and src/find_unencrypted_keys/adapters/__init__.py
+- [X] T004 Create package marker modules in src/check_unprotected_keys/__init__.py, src/check_unprotected_keys/config/__init__.py, src/check_unprotected_keys/domain/__init__.py, src/check_unprotected_keys/services/__init__.py, and src/check_unprotected_keys/adapters/__init__.py
 
 ---
 
@@ -25,12 +25,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T005 Create shared scan request, effective scope, and finding models in src/find_unencrypted_keys/domain/models.py
-- [X] T006 [P] Implement scope resolution primitives in src/find_unencrypted_keys/domain/scope.py
-- [X] T007 [P] Implement configuration models and base TOML loader scaffolding in src/find_unencrypted_keys/config/models.py and src/find_unencrypted_keys/config/loader.py
-- [X] T008 [P] Implement filesystem discovery, canonicalization, and dedup helpers in src/find_unencrypted_keys/adapters/filesystem.py
-- [X] T009 [P] Implement safe console reporting and non-secret error summary helpers in src/find_unencrypted_keys/adapters/reporting.py
-- [X] T010 Establish scan orchestration and CLI skeletons in src/find_unencrypted_keys/services/scan_service.py and src/find_unencrypted_keys/cli.py
+- [X] T005 Create shared scan request, effective scope, and finding models in src/check_unprotected_keys/domain/models.py
+- [X] T006 [P] Implement scope resolution primitives in src/check_unprotected_keys/domain/scope.py
+- [X] T007 [P] Implement configuration models and base TOML loader scaffolding in src/check_unprotected_keys/config/models.py and src/check_unprotected_keys/config/loader.py
+- [X] T008 [P] Implement filesystem discovery, canonicalization, and dedup helpers in src/check_unprotected_keys/adapters/filesystem.py
+- [X] T009 [P] Implement safe console reporting and non-secret error summary helpers in src/check_unprotected_keys/adapters/reporting.py
+- [X] T010 Establish scan orchestration and CLI skeletons in src/check_unprotected_keys/services/scan_service.py and src/check_unprotected_keys/cli.py
 - [X] T011 [P] Add CI quality and build workflow in .github/workflows/ci.yml
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in priority order
@@ -54,11 +54,11 @@
 
 ### Implementation for User Story 1
 
-- [X] T016 [P] [US1] Implement protection assessment rules and finding classification in src/find_unencrypted_keys/domain/classification.py
-- [X] T017 [P] [US1] Implement PEM, OpenSSH, and PuTTY parser adapters in src/find_unencrypted_keys/adapters/key_parsers.py
-- [X] T018 [US1] Implement default-scope scan execution and file-level finding aggregation in src/find_unencrypted_keys/services/scan_service.py
-- [X] T019 [US1] Implement default CLI execution path and findings exit codes in src/find_unencrypted_keys/cli.py
-- [X] T020 [US1] Emit canonical finding paths and unreadable-file summaries in src/find_unencrypted_keys/adapters/reporting.py
+- [X] T016 [P] [US1] Implement protection assessment rules and finding classification in src/check_unprotected_keys/domain/classification.py
+- [X] T017 [P] [US1] Implement PEM, OpenSSH, and PuTTY parser adapters in src/check_unprotected_keys/adapters/key_parsers.py
+- [X] T018 [US1] Implement default-scope scan execution and file-level finding aggregation in src/check_unprotected_keys/services/scan_service.py
+- [X] T019 [US1] Implement default CLI execution path and findings exit codes in src/check_unprotected_keys/cli.py
+- [X] T020 [US1] Emit canonical finding paths and unreadable-file summaries in src/check_unprotected_keys/adapters/reporting.py
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently.
 
@@ -79,10 +79,10 @@
 
 ### Implementation for User Story 2
 
-- [X] T025 [US2] Implement start-folder narrowing rules in src/find_unencrypted_keys/domain/scope.py
-- [X] T026 [US2] Update filesystem root expansion and canonical root filtering in src/find_unencrypted_keys/adapters/filesystem.py
-- [X] T027 [US2] Update scan orchestration for narrowed folder scopes in src/find_unencrypted_keys/services/scan_service.py
-- [X] T028 [US2] Add CLI validation and user-facing errors for --start-folder in src/find_unencrypted_keys/cli.py
+- [X] T025 [US2] Implement start-folder narrowing rules in src/check_unprotected_keys/domain/scope.py
+- [X] T026 [US2] Update filesystem root expansion and canonical root filtering in src/check_unprotected_keys/adapters/filesystem.py
+- [X] T027 [US2] Update scan orchestration for narrowed folder scopes in src/check_unprotected_keys/services/scan_service.py
+- [X] T028 [US2] Add CLI validation and user-facing errors for --start-folder in src/check_unprotected_keys/cli.py
 
 **Checkpoint**: At this point, User Stories 1 and 2 should both work independently.
 
@@ -100,9 +100,9 @@
 
 ### Implementation for User Story 3
 
-- [X] T031 [US3] Implement TOML configuration parsing and schema validation in `src/find_unencrypted_keys/config/loader.py`
-- [X] T032 [US3] Implement configuration-backed folder and filename scope resolution in `src/find_unencrypted_keys/adapters/filesystem.py`
-- [X] T033 [US3] Implement overlap deduplication and config-driven scan-request composition in `src/find_unencrypted_keys/services/scan_service.py`
+- [X] T031 [US3] Implement TOML configuration parsing and schema validation in `src/check_unprotected_keys/config/loader.py`
+- [X] T032 [US3] Implement configuration-backed folder and filename scope resolution in `src/check_unprotected_keys/adapters/filesystem.py`
+- [X] T033 [US3] Implement overlap deduplication and config-driven scan-request composition in `src/check_unprotected_keys/services/scan_service.py`
 - [X] T034 [US3] Update runtime configuration examples in `specs/001-check-unprotected-keys/contracts/config-contract.md` and `specs/001-check-unprotected-keys/quickstart.md`
 - [X] T035 [US3] Verify US3 coverage stays above the enforced threshold in `tests/unit/test_config_loader.py` and `tests/contract/test_config_contract.py`
 
@@ -115,9 +115,9 @@
 **Purpose**: Finalize documentation, validation, packaging, and cross-story hardening.
 
 - [X] T036 [P] Update operator-facing documentation in `README.md` and `specs/001-check-unprotected-keys/quickstart.md`
-- [X] T037 Refine shared scan interfaces in `src/find_unencrypted_keys/services/scan_service.py` and `src/find_unencrypted_keys/domain/models.py`
+- [X] T037 Refine shared scan interfaces in `src/check_unprotected_keys/services/scan_service.py` and `src/check_unprotected_keys/domain/models.py`
 - [X] T038 [P] Run formatter, lint, type-check, pytest, and coverage commands defined in `pyproject.toml`
-- [X] T039 Harden secret-safe error summaries in `src/find_unencrypted_keys/adapters/reporting.py` and `src/find_unencrypted_keys/services/scan_service.py`
+- [X] T039 Harden secret-safe error summaries in `src/check_unprotected_keys/adapters/reporting.py` and `src/check_unprotected_keys/services/scan_service.py`
 - [X] T040 [P] Build and smoke-test the standalone executable with `scripts/smoke_test_executable.sh`
 - [X] T041 Run the documented quickstart validation from `specs/001-check-unprotected-keys/quickstart.md`
 
@@ -164,8 +164,8 @@
 Task: "Add protected, unprotected, empty-passphrase, and public-only fixture files in tests/fixtures/default-scope/"
 Task: "Add unit tests for key classification and safe reporting in tests/unit/test_key_classification.py and tests/unit/test_reporting.py"
 
-Task: "Implement PEM, PKCS#8, and OpenSSH key parsing in src/find_unencrypted_keys/adapters/key_parsers.py"
-Task: "Implement protection-assessment rules in src/find_unencrypted_keys/domain/classification.py"
+Task: "Implement PEM, PKCS#8, and OpenSSH key parsing in src/check_unprotected_keys/adapters/key_parsers.py"
+Task: "Implement protection-assessment rules in src/check_unprotected_keys/domain/classification.py"
 ```
 
 ## Parallel Example: User Story 2

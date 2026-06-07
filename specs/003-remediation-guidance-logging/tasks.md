@@ -24,9 +24,9 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete.
 
-- [X] T004 Extend typed scan-result and finding primitives for malformed issues and guidance metadata in src/find_unencrypted_keys/domain/models.py
-- [X] T005 Wire candidate context needed for malformed-path and recommendation reporting in src/find_unencrypted_keys/services/scan_service.py
-- [X] T006 Add shared operator-safe stderr section rendering helpers in src/find_unencrypted_keys/adapters/reporting.py
+- [X] T004 Extend typed scan-result and finding primitives for malformed issues and guidance metadata in src/check_unprotected_keys/domain/models.py
+- [X] T005 Wire candidate context needed for malformed-path and recommendation reporting in src/check_unprotected_keys/services/scan_service.py
+- [X] T006 Add shared operator-safe stderr section rendering helpers in src/check_unprotected_keys/adapters/reporting.py
 
 **Checkpoint**: Typed reporting foundations are ready; user story implementation can now proceed in priority order.
 
@@ -48,8 +48,8 @@
 ### Implementation for User Story 1
 
 - [X] T011 [P] [US1] Populate malformed-file fixture scenarios and expected outputs in tests/support/fixture_builders.py
-- [X] T012 [US1] Record canonical malformed issues in src/find_unencrypted_keys/domain/models.py and src/find_unencrypted_keys/services/scan_service.py
-- [X] T013 [US1] Emit malformed-file path logs in src/find_unencrypted_keys/adapters/reporting.py
+- [X] T012 [US1] Record canonical malformed issues in src/check_unprotected_keys/domain/models.py and src/check_unprotected_keys/services/scan_service.py
+- [X] T013 [US1] Emit malformed-file path logs in src/check_unprotected_keys/adapters/reporting.py
 
 **Checkpoint**: User Story 1 is independently functional and proves malformed files are surfaced without breaking machine-readable findings.
 
@@ -71,9 +71,9 @@
 ### Implementation for User Story 2
 
 - [X] T018 [P] [US2] Populate interactive-user, host-key, automation, and embedded-config recommendation fixtures in tests/support/fixture_builders.py
-- [X] T019 [US2] Add usage-category and remediation recommendation entities in src/find_unencrypted_keys/domain/models.py
-- [X] T020 [US2] Implement usage-category inference and finding enrichment in src/find_unencrypted_keys/services/scan_service.py
-- [X] T021 [US2] Emit per-finding remediation guidance blocks in src/find_unencrypted_keys/adapters/reporting.py
+- [X] T019 [US2] Add usage-category and remediation recommendation entities in src/check_unprotected_keys/domain/models.py
+- [X] T020 [US2] Implement usage-category inference and finding enrichment in src/check_unprotected_keys/services/scan_service.py
+- [X] T021 [US2] Emit per-finding remediation guidance blocks in src/check_unprotected_keys/adapters/reporting.py
 
 **Checkpoint**: User Story 2 is independently functional and produces low-friction remediation guidance for supported unprotected findings.
 
@@ -94,8 +94,8 @@
 
 ### Implementation for User Story 3
 
-- [X] T026 [P] [US3] Refine stable stdout/stderr ordering and section formatting in src/find_unencrypted_keys/adapters/reporting.py
-- [X] T027 [US3] Preserve start-folder-compatible recommendation context in src/find_unencrypted_keys/services/scan_service.py
+- [X] T026 [P] [US3] Refine stable stdout/stderr ordering and section formatting in src/check_unprotected_keys/adapters/reporting.py
+- [X] T027 [US3] Preserve start-folder-compatible recommendation context in src/check_unprotected_keys/services/scan_service.py
 - [X] T028 [US3] Document scriptable-output guarantees and operator guidance flow in specs/003-remediation-guidance-logging/contracts/cli-contract.md and specs/003-remediation-guidance-logging/quickstart.md
 
 **Checkpoint**: All user stories are independently functional and the CLI contract remains stable for human and automated consumers.

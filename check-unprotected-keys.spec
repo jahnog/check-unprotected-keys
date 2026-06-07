@@ -1,11 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_data_files
+
 
 a = Analysis(
-    ['src/find_unencrypted_keys/cli.py'],
+    ['src/check_unprotected_keys/cli.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=collect_data_files('check_unprotected_keys.resources'),
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

@@ -10,11 +10,11 @@ from pathlib import Path
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 
-from find_unencrypted_keys.domain.classification import (
+from check_unprotected_keys.domain.classification import (
     build_assessment,
     select_file_assessment,
 )
-from find_unencrypted_keys.domain.models import (
+from check_unprotected_keys.domain.models import (
     ProtectionAssessment,
     ProtectionClassification,
 )

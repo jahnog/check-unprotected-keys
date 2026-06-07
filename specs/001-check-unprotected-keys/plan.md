@@ -44,7 +44,7 @@ SSD-backed hardware while streaming line-oriented findings
 canonical-path deduplication, continue after unreadable or malformed files, and
 start-folder overrides may narrow folder scope only
 
-**Quality Gates**: `ruff check . && ruff format --check . && pyright . && pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85`; release validation also runs `python -m build` and a PyInstaller smoke test
+**Quality Gates**: `ruff check . && ruff format --check . && pyright . && pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85`; release validation also runs `python -m build` and a PyInstaller smoke test
 
 **Scale/Scope**: Thousands of files across configured folder globs; initial
 support for PEM, OpenSSH private keys, PuTTY `.ppk` encryption headers, and
@@ -98,7 +98,7 @@ specs/001-check-unprotected-keys/
 
 ```text
 src/
-└── find_unencrypted_keys/
+└── check_unprotected_keys/
     ├── __init__.py
     ├── cli.py
     ├── config/
@@ -133,7 +133,7 @@ tests/
 ```
 
 **Structure Decision**: Use a single-project Python CLI layout under
-`src/find_unencrypted_keys/`, keeping CLI argument handling thin and isolating
+`src/check_unprotected_keys/`, keeping CLI argument handling thin and isolating
 filesystem access, configuration I/O, and key parsing behind typed adapters and
 an application-level scan service.
 

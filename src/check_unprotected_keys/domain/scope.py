@@ -6,7 +6,7 @@ import os
 from collections.abc import Iterable
 from pathlib import Path
 
-from find_unencrypted_keys.domain.models import EffectiveScope
+from check_unprotected_keys.domain.models import EffectiveScope
 
 
 def resolve_start_folder(execution_root: Path, raw_value: str | None) -> Path | None:

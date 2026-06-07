@@ -78,7 +78,7 @@ filename_patterns = [
 ## Validation Scenario 1: Expanded Default Scope
 
 ```bash
-PYTHONPATH="$REPO_ROOT/src" python -m find_unencrypted_keys.cli
+PYTHONPATH="$REPO_ROOT/src" python -m check_unprotected_keys.cli
 ```
 
 Expected outcome:
@@ -94,7 +94,7 @@ Expected outcome:
 ## Validation Scenario 2: Start-Folder Narrowing
 
 ```bash
-PYTHONPATH="$REPO_ROOT/src" python -m find_unencrypted_keys.cli --start-folder fixtures/expanded-patterns/infra
+PYTHONPATH="$REPO_ROOT/src" python -m check_unprotected_keys.cli --start-folder fixtures/expanded-patterns/infra
 ```
 
 Expected outcome:
@@ -106,7 +106,7 @@ Expected outcome:
 ## Validation Scenario 3: Noise-Boundary Check
 
 ```bash
-PYTHONPATH="$REPO_ROOT/src" python -m find_unencrypted_keys.cli --start-folder fixtures/expanded-patterns/noise
+PYTHONPATH="$REPO_ROOT/src" python -m check_unprotected_keys.cli --start-folder fixtures/expanded-patterns/noise
 ```
 
 Expected outcome:
@@ -150,7 +150,7 @@ Expected outcome:
 ruff check .
 ruff format --check .
 pyright .
-pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85
+pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85
 ```
 
 Expected outcome:

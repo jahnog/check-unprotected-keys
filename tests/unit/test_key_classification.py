@@ -5,9 +5,9 @@ from __future__ import annotations
 import stat
 from pathlib import Path
 
-from find_unencrypted_keys.adapters.key_parsers import inspect_candidate_file
-from find_unencrypted_keys.domain.classification import is_finding
-from find_unencrypted_keys.domain.models import ProtectionClassification
+from check_unprotected_keys.adapters.key_parsers import inspect_candidate_file
+from check_unprotected_keys.domain.classification import is_finding
+from check_unprotected_keys.domain.models import ProtectionClassification
 
 from ..support.fixture_builders import (
     create_expanded_noise_workspace,

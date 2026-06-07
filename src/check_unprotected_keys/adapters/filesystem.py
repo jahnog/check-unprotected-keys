@@ -8,8 +8,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from find_unencrypted_keys.domain import scope as scope_domain
-from find_unencrypted_keys.domain.models import (
+from check_unprotected_keys.domain import scope as scope_domain
+from check_unprotected_keys.domain.models import (
     CandidateFile,
     EffectiveScope,
     SearchConfiguration,

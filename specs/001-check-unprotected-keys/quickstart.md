@@ -112,7 +112,7 @@ Expected outcome:
 ruff check .
 ruff format --check .
 pyright .
-pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85
+pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85
 ```
 
 Expected outcome:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from find_unencrypted_keys.cli import main
+from check_unprotected_keys.cli import main
 from tests.support.fixture_builders import (
     create_expanded_pattern_workspace,
     create_recommendation_workspace,

@@ -5,14 +5,14 @@ from __future__ import annotations
 from io import StringIO
 from pathlib import Path
 
-from find_unencrypted_keys.adapters.reporting import emit_scan_result
-from find_unencrypted_keys.config.loader import load_search_configuration
-from find_unencrypted_keys.domain.models import (
+from check_unprotected_keys.adapters.reporting import emit_scan_result
+from check_unprotected_keys.config.loader import load_search_configuration
+from check_unprotected_keys.domain.models import (
     ProtectionClassification,
     ScanRequest,
     UsageCategory,
 )
-from find_unencrypted_keys.services.scan_service import ScanService
+from check_unprotected_keys.services.scan_service import ScanService
 from tests.support.fixture_builders import (
     HOME_EXPANDED_FOLDER_PATTERN,
     create_expanded_pattern_workspace,

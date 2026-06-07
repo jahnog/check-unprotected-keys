@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from find_unencrypted_keys.adapters import filesystem, key_parsers
-from find_unencrypted_keys.domain.classification import is_finding
-from find_unencrypted_keys.domain.models import (
+from check_unprotected_keys.adapters import filesystem, key_parsers
+from check_unprotected_keys.domain.classification import is_finding
+from check_unprotected_keys.domain.models import (
     CandidateFile,
     CandidateState,
     ProtectionClassification,

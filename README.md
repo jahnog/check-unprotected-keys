@@ -1,4 +1,4 @@
-# Find Unencrypted Keys
+# check-unprotected-keys
 
 `check-unprotected-keys` is a standalone Python CLI that scans configured
 folders for private keys that are unprotected or protected with an empty
@@ -17,6 +17,20 @@ It does not perform generic plaintext API-key, token, or password detection.
 
 ## Install
 
+Published install:
+
+```bash
+python -m pip install check-unprotected-keys
+```
+
+Isolated CLI install:
+
+```bash
+pipx install check-unprotected-keys
+```
+
+Development install:
+
 ```bash
 uv sync --extra dev
 ```
@@ -26,13 +40,16 @@ also supported.
 
 ## Configure
 
-Copy the example config and adjust the folder patterns for your environment.
-The local `.check-unprotected-keys.toml` is intentionally ignored so
-machine-specific scan roots do not end up in version control:
+Print the packaged example config and adjust the folder patterns for your
+environment. The local `.check-unprotected-keys.toml` is intentionally ignored
+so machine-specific scan roots do not end up in version control:
 
 ```bash
-cp .check-unprotected-keys.toml.example .check-unprotected-keys.toml
+check-unprotected-keys --print-example-config > .check-unprotected-keys.toml
 ```
+
+The same command works with the published wheel, `pipx` install, editable repo
+checkout, and the standalone executable.
 
 Example configuration:
 
@@ -118,13 +135,19 @@ check-unprotected-keys
 The package also supports module invocation:
 
 ```bash
-uv run python -m find_unencrypted_keys --version
+uv run python -m check_unprotected_keys --version
 ```
 
 Inspect the installed program version:
 
 ```bash
 check-unprotected-keys --version
+```
+
+Print the installed example configuration:
+
+```bash
+check-unprotected-keys --print-example-config
 ```
 
 Stdout remains scriptable: one canonical affected-file path per line. Stderr is
@@ -153,7 +176,7 @@ Exit codes:
 uv run --extra dev ruff check .
 uv run --extra dev ruff format --check .
 uv run python -m pyright .
-uv run python -m pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85
+uv run python -m pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85
 ```
 
 ## Standalone Smoke Test
@@ -169,7 +192,7 @@ finding paths on stdout while leaving operator messaging on stderr.
 ## Release Validation
 
 See [RELEASE.md](RELEASE.md) for the supported validation flow for wheels and
-the standalone executable.
+the standalone executable, plus the GitHub Release to PyPI publication path.
 
 ## Fixtures
 

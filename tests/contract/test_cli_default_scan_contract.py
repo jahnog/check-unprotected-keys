@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from find_unencrypted_keys.cli import main
+from check_unprotected_keys.cli import main
 
 from ..support.fixture_builders import (
     HOME_EXPANDED_FOLDER_PATTERN,
@@ -142,6 +142,7 @@ def test_cli_help_lists_supported_options(capsys) -> None:
     assert exc_info.value.code == 0
     assert "Scan configured folders and filename patterns" in captured.out
     assert "--start-folder" in captured.out
+    assert "--print-example-config" in captured.out
     assert "--version" in captured.out
     assert captured.err == ""
 
@@ -154,6 +155,18 @@ def test_cli_version_prints_program_name_and_version(capsys) -> None:
 
     assert exc_info.value.code == 0
     assert captured.out.strip() == "check-unprotected-keys 0.1.0"
+    assert captured.err == ""
+
+
+def test_cli_can_print_packaged_example_configuration(capsys) -> None:
+    exit_code = main(["--print-example-config"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "[scan]" in captured.out
+    assert "folder_patterns = [" in captured.out
+    assert "filename_patterns = [" in captured.out
     assert captured.err == ""
 
 

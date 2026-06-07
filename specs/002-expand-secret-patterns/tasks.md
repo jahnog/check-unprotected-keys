@@ -94,7 +94,7 @@
 ### Implementation for User Story 3
 
 - [X] T025 [P] [US3] Extend expanded-catalog workspace and override helpers in tests/support/fixture_builders.py
-- [X] T026 [US3] Update expanded-catalog root expansion and narrowed-scope handling in src/find_unencrypted_keys/adapters/filesystem.py and src/find_unencrypted_keys/domain/scope.py
+- [X] T026 [US3] Update expanded-catalog root expansion and narrowed-scope handling in src/check_unprotected_keys/adapters/filesystem.py and src/check_unprotected_keys/domain/scope.py
 - [X] T027 [US3] Document operator-controlled catalog edits and start-folder behavior in specs/002-expand-secret-patterns/contracts/cli-contract.md and specs/002-expand-secret-patterns/quickstart.md
 
 **Checkpoint**: All user stories are independently functional and compatible with operator-controlled scope updates.

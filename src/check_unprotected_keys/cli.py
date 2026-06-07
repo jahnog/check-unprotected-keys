@@ -6,15 +6,16 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
-from find_unencrypted_keys import __version__
-from find_unencrypted_keys.adapters.reporting import emit_error, emit_scan_result
-from find_unencrypted_keys.config.loader import (
+from check_unprotected_keys import __version__
+from check_unprotected_keys.adapters.reporting import emit_error, emit_scan_result
+from check_unprotected_keys.config.loader import (
     ConfigurationError,
     load_search_configuration,
+    read_example_configuration_text,
 )
-from find_unencrypted_keys.domain.models import ScanRequest
-from find_unencrypted_keys.domain.scope import resolve_start_folder
-from find_unencrypted_keys.services.scan_service import ScanService
+from check_unprotected_keys.domain.models import ScanRequest
+from check_unprotected_keys.domain.scope import resolve_start_folder
+from check_unprotected_keys.services.scan_service import ScanService
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -40,6 +41,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"%(prog)s {__version__}",
     )
+    parser.add_argument(
+        "--print-example-config",
+        action="store_true",
+        help="Print the packaged example configuration to stdout and exit.",
+    )
     return parser
 
 
@@ -48,6 +54,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser = build_argument_parser()
     args = parser.parse_args(argv)
+
+    if args.print_example_config:
+        print(read_example_configuration_text(), end="")
+        return 0
 
     execution_root = Path.cwd().resolve()
 
