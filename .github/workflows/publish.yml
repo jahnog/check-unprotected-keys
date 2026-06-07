@@ -1,0 +1,81 @@
+name: Publish
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Build source and wheel distributions
+        run: uv run python -m build
+
+      - name: Build standalone executable
+        run: uv run python -m PyInstaller --noconfirm --clean check-unprotected-keys.spec
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+
+      - name: Upload standalone artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-executable
+          path: dist/check-unprotected-keys
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  attach-standalone:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download standalone artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: standalone-executable
+          path: dist
+
+      - name: Attach standalone executable to the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/check-unprotected-keys
