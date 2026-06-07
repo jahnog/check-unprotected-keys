@@ -26,7 +26,9 @@ also supported.
 
 ## Configure
 
-Copy the example config and adjust the folder patterns for your environment:
+Copy the example config and adjust the folder patterns for your environment.
+The local `.check-unprotected-keys.toml` is intentionally ignored so
+machine-specific scan roots do not end up in version control:
 
 ```bash
 cp .check-unprotected-keys.toml.example .check-unprotected-keys.toml
@@ -111,6 +113,12 @@ Run the default configured scan:
 
 ```bash
 check-unprotected-keys
+```
+
+The package also supports module invocation:
+
+```bash
+uv run python -m find_unencrypted_keys --version
 ```
 
 Inspect the installed program version:

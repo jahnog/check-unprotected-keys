@@ -16,6 +16,7 @@ htmlcov/
 .mypy_cache/
 .tox/
 *.log
+.check-unprotected-keys.toml
 .env*
 .DS_Store
 Thumbs.db

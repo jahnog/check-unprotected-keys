@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import runpy
 import stat
 from io import StringIO
 from pathlib import Path
 
 import pytest
 
+import find_unencrypted_keys.cli as cli_module
 from find_unencrypted_keys.adapters.filesystem import resolve_effective_scope
 from find_unencrypted_keys.adapters.reporting import emit_error, emit_scan_result
 from find_unencrypted_keys.config.loader import (
@@ -222,3 +224,12 @@ def test_emit_error_writes_trimmed_message() -> None:
     emit_error("\n  invalid configuration  \n", stderr=stderr)
 
     assert stderr.getvalue() == "invalid configuration\n"
+
+
+def test_module_entrypoint_delegates_to_cli_main(monkeypatch) -> None:
+    monkeypatch.setattr(cli_module, "main", lambda: 7)
+
+    with pytest.raises(SystemExit) as exc_info:
+        runpy.run_module("find_unencrypted_keys", run_name="__main__")
+
+    assert exc_info.value.code == 7
