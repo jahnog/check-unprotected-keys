@@ -13,15 +13,16 @@ It does not perform generic plaintext API-key, token, or password detection.
 ## Requirements
 
 - Python 3.12
-- A local virtual environment for development and validation
+- `uv` for reproducible development and release validation
 
 ## Install
 
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
+uv sync --extra dev
 ```
+
+If you prefer a traditional virtual environment, `pip install -e .[dev]` is
+also supported.
 
 ## Configure
 
@@ -112,6 +113,12 @@ Run the default configured scan:
 check-unprotected-keys
 ```
 
+Inspect the installed program version:
+
+```bash
+check-unprotected-keys --version
+```
+
 Stdout remains scriptable: one canonical affected-file path per line. Stderr is
 reserved for the scan summary, malformed-file follow-up paths, and guidance
 such as session-agent recommendations for interactive SSH keys or vault-style
@@ -135,17 +142,26 @@ Exit codes:
 ## Quality Gates
 
 ```bash
-ruff check .
-ruff format --check .
-pyright .
-pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85
+uv run --extra dev ruff check .
+uv run --extra dev ruff format --check .
+uv run python -m pyright .
+uv run python -m pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85
 ```
 
 ## Standalone Smoke Test
 
 ```bash
-PATH="$PWD/.venv/bin:$PATH" bash scripts/smoke_test_executable.sh
+uv run bash scripts/smoke_test_executable.sh
 ```
+
+The smoke test builds through [check-unprotected-keys.spec](check-unprotected-keys.spec),
+verifies `--help` and `--version`, and checks that the bundled executable keeps
+finding paths on stdout while leaving operator messaging on stderr.
+
+## Release Validation
+
+See [RELEASE.md](RELEASE.md) for the supported validation flow for wheels and
+the standalone executable.
 
 ## Fixtures
 

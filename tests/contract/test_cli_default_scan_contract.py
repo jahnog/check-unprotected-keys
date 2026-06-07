@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from find_unencrypted_keys.cli import main
 
 from ..support.fixture_builders import (
@@ -129,6 +131,30 @@ def test_cli_returns_exit_code_two_for_invalid_configuration(
     assert exit_code == 2
     assert captured.out == ""
     assert "scan.folder_patterns[1] must not be blank" in captured.err
+
+
+def test_cli_help_lists_supported_options(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+
+    captured = capsys.readouterr()
+
+    assert exc_info.value.code == 0
+    assert "Scan configured folders and filename patterns" in captured.out
+    assert "--start-folder" in captured.out
+    assert "--version" in captured.out
+    assert captured.err == ""
+
+
+def test_cli_version_prints_program_name_and_version(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--version"])
+
+    captured = capsys.readouterr()
+
+    assert exc_info.value.code == 0
+    assert captured.out.strip() == "check-unprotected-keys 0.1.0"
+    assert captured.err == ""
 
 
 def test_default_scan_contract_respects_expanded_catalog_overrides(

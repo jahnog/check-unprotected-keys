@@ -4,12 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "check-unprotected-keys"
-version = "0.1.0"
 description = "Standalone CLI scanner for unprotected private keys"
 requires-python = ">=3.12"
+dynamic = ["version"]
 dependencies = [
     "cryptography>=46.0.7,<47.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/jahnog/find-unencrypted-keys"
+Issues = "https://github.com/jahnog/find-unencrypted-keys/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -27,6 +31,9 @@ check-unprotected-keys = "find_unencrypted_keys.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+
+[tool.setuptools.dynamic]
+version = {attr = "find_unencrypted_keys.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
