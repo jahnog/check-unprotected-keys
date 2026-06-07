@@ -9,19 +9,19 @@ from pathlib import Path
 
 import pytest
 
-import find_unencrypted_keys.cli as cli_module
-from find_unencrypted_keys.adapters.filesystem import resolve_effective_scope
-from find_unencrypted_keys.adapters.reporting import emit_error, emit_scan_result
-from find_unencrypted_keys.config.loader import (
+import check_unprotected_keys.cli as cli_module
+from check_unprotected_keys.adapters.filesystem import resolve_effective_scope
+from check_unprotected_keys.adapters.reporting import emit_error, emit_scan_result
+from check_unprotected_keys.config.loader import (
     ConfigurationError,
     load_search_configuration,
 )
-from find_unencrypted_keys.domain.models import (
+from check_unprotected_keys.domain.models import (
     KeyFinding,
     ProtectionClassification,
     ScanResult,
 )
-from find_unencrypted_keys.domain.scope import (
+from check_unprotected_keys.domain.scope import (
     build_effective_scope,
     narrow_root_directories,
     resolve_start_folder,
@@ -230,6 +230,6 @@ def test_module_entrypoint_delegates_to_cli_main(monkeypatch) -> None:
     monkeypatch.setattr(cli_module, "main", lambda: 7)
 
     with pytest.raises(SystemExit) as exc_info:
-        runpy.run_module("find_unencrypted_keys", run_name="__main__")
+        runpy.run_module("check_unprotected_keys", run_name="__main__")
 
     assert exc_info.value.code == 7

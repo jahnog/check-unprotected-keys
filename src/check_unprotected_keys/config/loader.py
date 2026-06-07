@@ -3,17 +3,27 @@
 from __future__ import annotations
 
 import tomllib
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from find_unencrypted_keys.config.models import ScanConfigSection
-from find_unencrypted_keys.domain.models import SearchConfiguration
+from check_unprotected_keys.config.models import ScanConfigSection
+from check_unprotected_keys.domain.models import SearchConfiguration
 
 DEFAULT_CONFIG_FILENAME = ".check-unprotected-keys.toml"
 
 
 class ConfigurationError(ValueError):
     """Raised when runtime scan configuration is missing or invalid."""
+
+
+def read_example_configuration_text() -> str:
+    """Return the packaged example configuration for installed users."""
+
+    resource = files("check_unprotected_keys.resources").joinpath(
+        "check-unprotected-keys.example.toml"
+    )
+    return resource.read_text(encoding="utf-8")
 
 
 def load_search_configuration(

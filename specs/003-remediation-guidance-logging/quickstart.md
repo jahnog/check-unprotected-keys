@@ -97,7 +97,7 @@ Expected outcome:
 uv run --extra dev ruff check .
 uv run --extra dev ruff format --check .
 uv run --extra dev pyright .
-uv run --extra dev pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85
+uv run --extra dev pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85
 ```
 
 Expected outcome:

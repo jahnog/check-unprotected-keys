@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from find_unencrypted_keys.adapters.reporting import emit_scan_result
-from find_unencrypted_keys.config.loader import load_search_configuration
-from find_unencrypted_keys.domain.models import ScanRequest
-from find_unencrypted_keys.services.scan_service import ScanService
+from check_unprotected_keys.adapters.reporting import emit_scan_result
+from check_unprotected_keys.config.loader import load_search_configuration
+from check_unprotected_keys.domain.models import ScanRequest
+from check_unprotected_keys.services.scan_service import ScanService
 
 from ..support.fixture_builders import (
     create_remediation_guidance_workspace,

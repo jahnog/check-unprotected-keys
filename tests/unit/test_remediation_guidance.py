@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from find_unencrypted_keys.config.loader import load_search_configuration
-from find_unencrypted_keys.domain.models import ScanRequest, UsageCategory
-from find_unencrypted_keys.services.scan_service import ScanService
+from check_unprotected_keys.config.loader import load_search_configuration
+from check_unprotected_keys.domain.models import ScanRequest, UsageCategory
+from check_unprotected_keys.services.scan_service import ScanService
 from tests.support.fixture_builders import (
     create_recommendation_workspace,
     write_recommendation_scan_configuration,

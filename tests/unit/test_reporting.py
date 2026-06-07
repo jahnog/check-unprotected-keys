@@ -5,13 +5,15 @@ from __future__ import annotations
 from io import StringIO
 from pathlib import Path
 
-from find_unencrypted_keys.adapters.reporting import emit_scan_result
-from find_unencrypted_keys.domain.models import (
+from check_unprotected_keys.adapters.reporting import emit_scan_result
+from check_unprotected_keys.domain.models import (
     ProtectionClassification,
     ScanResult,
     UsageCategory,
 )
-from find_unencrypted_keys.services.scan_service import build_remediation_recommendation
+from check_unprotected_keys.services.scan_service import (
+    build_remediation_recommendation,
+)
 from tests.support.fixture_builders import nonempty_output_lines
 
 

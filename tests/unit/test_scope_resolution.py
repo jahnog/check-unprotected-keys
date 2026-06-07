@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from find_unencrypted_keys.adapters.filesystem import resolve_effective_scope
-from find_unencrypted_keys.config.loader import load_search_configuration
-from find_unencrypted_keys.domain.scope import (
+from check_unprotected_keys.adapters.filesystem import resolve_effective_scope
+from check_unprotected_keys.config.loader import load_search_configuration
+from check_unprotected_keys.domain.scope import (
     build_effective_scope,
     narrow_root_directories,
 )

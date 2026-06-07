@@ -49,7 +49,7 @@ contents may be echoed, malformed files must not change exit-code semantics,
 guidance must stay advisory only, and the feature must not expand into generic
 token or password detection
 
-**Quality Gates**: `uv run --extra dev ruff check . && uv run --extra dev ruff format --check . && uv run --extra dev pyright . && uv run --extra dev pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85`; release validation also runs `uv run --extra dev python -m build` and `uv run --extra dev bash scripts/smoke_test_executable.sh`
+**Quality Gates**: `uv run --extra dev ruff check . && uv run --extra dev ruff format --check . && uv run --extra dev pyright . && uv run --extra dev pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85`; release validation also runs `uv run --extra dev python -m build` and `uv run --extra dev bash scripts/smoke_test_executable.sh`
 
 **Scale/Scope**: Existing repo-scale and workstation-scale scans across
 thousands of candidate files, with additional guidance emitted only for the
@@ -107,7 +107,7 @@ specs/003-remediation-guidance-logging/
 
 ```text
 src/
-└── find_unencrypted_keys/
+└── check_unprotected_keys/
     ├── cli.py
     ├── domain/
     │   └── models.py

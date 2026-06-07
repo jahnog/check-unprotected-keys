@@ -49,7 +49,7 @@ start-folder overrides may narrow folder scope only, keep the pattern catalog
 operator-editable, and do not add generic plaintext API-key, token, or
 unsupported secret detection as part of this feature
 
-**Quality Gates**: `ruff check . && ruff format --check . && pyright . && pytest --cov=src/find_unencrypted_keys --cov-report=term-missing --cov-fail-under=85`; release validation also runs `python -m build` and a PyInstaller smoke test
+**Quality Gates**: `ruff check . && ruff format --check . && pyright . && pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85`; release validation also runs `python -m build` and a PyInstaller smoke test
 
 **Scale/Scope**: Curated default coverage across user-home `.ssh`, repo-local
 key/cert/config/deploy/IaC/VPN directories, and high-signal text-container
@@ -111,7 +111,7 @@ specs/002-expand-secret-patterns/
 README.md
 
 src/
-└── find_unencrypted_keys/
+└── check_unprotected_keys/
     ├── __init__.py
     ├── cli.py
     ├── config/

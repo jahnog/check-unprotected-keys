@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from find_unencrypted_keys.domain.models import (
+from check_unprotected_keys.domain.models import (
     ProtectionAssessment,
     ProtectionClassification,
 )

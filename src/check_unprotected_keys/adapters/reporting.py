@@ -6,7 +6,7 @@ import sys
 from textwrap import dedent
 from typing import TextIO
 
-from find_unencrypted_keys.domain.models import KeyFinding, ScanResult
+from check_unprotected_keys.domain.models import KeyFinding, ScanResult
 
 
 def emit_scan_result(
