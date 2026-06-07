@@ -14,8 +14,8 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/jahnog/find-unencrypted-keys"
-Issues = "https://github.com/jahnog/find-unencrypted-keys/issues"
+Repository = "https://github.com/jahnog/check-unprotected-keys"
+Issues = "https://github.com/jahnog/check-unprotected-keys/issues"
 
 [project.optional-dependencies]
 dev = [
