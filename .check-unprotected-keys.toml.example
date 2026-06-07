@@ -1,0 +1,54 @@
+# Curated expanded default catalog.
+# Excluded by default: public-only files such as *.pub or known_hosts,
+# certificate-only outputs such as *.crt or *.csr, unsupported keystore
+# families such as *.p12 or *.jks, generic structured config formats such as
+# *.json or *.yaml, and generic token-hunting globs.
+# Matching findings stay on stdout as canonical paths. Operator-safe malformed
+# file logs and low-friction protection guidance are emitted on stderr.
+[scan]
+folder_patterns = [
+  "~/.ssh",
+  ".ssh",
+  "keys",
+  "private",
+  "certs",
+  "certificates",
+  "tls",
+  "ssl",
+  "pki",
+  "secrets",
+  "config/keys",
+  "config/certs",
+  "config/tls",
+  "config/secrets",
+  ".config/keys",
+  ".config/certs",
+  ".config/tls",
+  ".config/secrets",
+  "deploy",
+  "deployment",
+  "infra",
+  "ansible",
+  "terraform",
+  "docker",
+  "helm",
+  "k8s",
+  "kubernetes",
+  "vpn",
+  "openvpn"
+]
+
+filename_patterns = [
+  "id_*",
+  "identity",
+  "ssh_host_*_key",
+  "*.ppk",
+  "*.pem",
+  "*.key",
+  ".env",
+  ".env.*",
+  "*.env",
+  "*.env.*",
+  "*.ovpn",
+  "*.tfvars"
+]

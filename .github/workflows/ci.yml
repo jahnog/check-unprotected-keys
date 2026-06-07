@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run Ruff
+        run: uv run --extra dev ruff check .
+
+      - name: Run Ruff format check
+        run: uv run --extra dev ruff format --check .
+
+      - name: Run Pyright
+        run: uv run python -m pyright .
+
+      - name: Run pytest with coverage
+        run: uv run python -m pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85
+
+      - name: Build distributions
+        run: uv run python -m build
+
+      - name: Smoke-test standalone executable
+        run: uv run bash scripts/smoke_test_executable.sh
