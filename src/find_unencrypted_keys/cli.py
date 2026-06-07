@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from find_unencrypted_keys import __version__
 from find_unencrypted_keys.adapters.reporting import emit_error, emit_scan_result
 from find_unencrypted_keys.config.loader import (
     ConfigurationError,
@@ -33,6 +34,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
             "Optional directory that narrows configured folder matches while "
             "keeping filename patterns unchanged."
         ),
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     return parser
 

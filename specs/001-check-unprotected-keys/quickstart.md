@@ -123,14 +123,16 @@ Expected outcome:
 
 ```bash
 python -m build
-pyinstaller --noconfirm --clean --onefile src/find_unencrypted_keys/cli.py --name check-unprotected-keys
-./dist/check-unprotected-keys --start-folder tests/fixtures/team-a
+python -m PyInstaller --noconfirm --clean check-unprotected-keys.spec
+./dist/check-unprotected-keys --help
+./dist/check-unprotected-keys --version
 ./dist/check-unprotected-keys --start-folder tests/fixtures/default-scope/team-a
 ```
 
 Expected outcome:
 
-- The packaged executable starts successfully.
+- The packaged executable starts successfully and reports its packaged version.
 - The packaged executable produces the same findings as the editable-install
-  command.
-- The packaged executable does not emit secret material in stdout or stderr.
+  command for `tests/fixtures/default-scope/team-a`.
+- The packaged executable keeps finding paths on stdout and leaves operator
+  messaging on stderr.
