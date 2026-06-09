@@ -215,7 +215,8 @@ def test_emit_scan_result_writes_summary_and_findings() -> None:
 
     assert stdout.getvalue() == "/tmp/finding.pem\n"
     assert "Found 1 violation(s)." in stderr.getvalue()
-    assert "1 malformed, 1 unreadable" in stderr.getvalue()
+    expected = "1 files without detected private keys, 1 files that could not be read"
+    assert expected in stderr.getvalue()
 
 
 def test_emit_error_writes_trimmed_message() -> None:

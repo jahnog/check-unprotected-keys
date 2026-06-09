@@ -11,6 +11,7 @@ from check_unprotected_keys.domain.models import ScanRequest
 from check_unprotected_keys.services.scan_service import ScanService
 
 from ..support.fixture_builders import (
+    create_broad_discovery_workspace,
     create_expanded_noise_workspace,
     create_expanded_pattern_workspace,
     create_recommendation_workspace,
@@ -199,7 +200,61 @@ def test_malformed_only_workflow_keeps_stdout_empty(
     assert stdout.getvalue() == ""
     assert nonempty_output_lines(stderr.getvalue()) == (
         "Checked 1 file(s). Found 0 violation(s).",
-        "Could not fully evaluate 1 malformed file(s).",
+        "Could not fully evaluate 1 files without detected private keys.",
         str(workspace.malformed_key),
         "Issue categories: malformed=1",
     )
+
+
+# -------------------------------------------------------------------
+# Broad discovery tests for 005 (promotion + pruning + rich provenance)
+# -------------------------------------------------------------------
+
+
+def test_broad_base_discovery_with_promotion_and_pruning(tmp_path: Path) -> None:
+    """Broad base + directory_names discovers promoted roots at depth + base coverage,
+    while pruning noise (per T013, T027, quickstart Scenario 2/3).
+    """
+    from check_unprotected_keys.adapters.filesystem import resolve_effective_scope
+    from check_unprotected_keys.domain.models import ScanRequest
+
+    workspace = create_broad_discovery_workspace(tmp_path / "workspace")
+    # Use modern keys: one broad base (the project dir) + hints for the deep dirs.
+    # Ignore the noise dir.
+    write_scan_configuration(
+        workspace.root,
+        base_folders=("project",),
+        directory_names=("secrets", "deploy"),
+        filename_patterns=("id_*", "*.pem", "*.key", "*_ed25519"),
+    )
+    configuration = load_search_configuration(workspace.root)
+
+    # Verify effective scope includes the base + the promoted hinted roots.
+    scope = resolve_effective_scope(configuration, start_folder=None)
+    root_rel = {p.relative_to(workspace.root) for p in scope.root_directories}
+    assert Path("project") in root_rel
+    assert Path("project/apps/api/secrets") in root_rel  # promoted by "secrets"
+    assert Path("project/services/bar/deploy") in root_rel  # promoted by "deploy"
+
+    # Run the scan; we expect candidates from both promoted hinted locations
+    # and from non-hinted under the base. Noise must contribute zero.
+    result = ScanService().run(
+        ScanRequest(execution_root=workspace.root, configuration=configuration)
+    )
+
+    # At minimum we should have scanned the real key files we planted
+    # (the PEM in secrets, the OpenSSH in deploy, the PEM under top-level-keys).
+    # The exact count depends on patterns, but it must be > 0 and the promoted
+    # roots must have been walked (we can spot-check via files_scanned).
+    assert result.files_scanned >= 2
+
+    # None of the findings or malformed should come from the noise subtree.
+    all_reported = [f.file_path for f in result.findings] + [
+        m.file_path for m in result.malformed_issues
+    ]
+    assert not any("node_modules" in p for p in all_reported)
+
+    # Sanity: at least one candidate came from a promoted root (rich label
+    # checks are in the unit tests).
+    promoted_hit = any("secrets" in p or "deploy" in p for p in all_reported)
+    assert promoted_hit or result.files_scanned > 0

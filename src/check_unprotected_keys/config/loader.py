@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import tomllib
 from importlib.resources import files
 from pathlib import Path
@@ -9,6 +10,36 @@ from typing import Any
 
 from check_unprotected_keys.config.models import ScanConfigSection
 from check_unprotected_keys.domain.models import SearchConfiguration
+
+# Safe default directories to never descend into when using broad bases.
+# Users can extend via ignore_directories in their config (additive).
+DEFAULT_IGNORE_DIRECTORIES: tuple[str, ...] = (
+    ".git",
+    ".svn",
+    ".hg",
+    "node_modules",
+    "bower_components",
+    ".venv",
+    "venv",
+    ".env",
+    "env",
+    "target",
+    "dist",
+    "build",
+    "out",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".coverage",
+    "coverage",
+    ".idea",
+    ".vscode",
+    ".vs",
+    "tmp",
+    "temp",
+    ".tmp",
+)
 
 DEFAULT_CONFIG_FILENAME = ".check-unprotected-keys.toml"
 
@@ -53,20 +84,62 @@ def load_search_configuration(
     scan_table = document.get("scan")
     if not isinstance(scan_table, dict):
         raise ConfigurationError(
-            "Configuration file must define a [scan] table with folder_patterns "
-            "and filename_patterns."
+            "Configuration file must define a [scan] table with base_folders "
+            "(or legacy folder_patterns) and filename_patterns."
         )
+
+    # Determine base folders: prefer modern key, fall back to legacy for compat.
+    if "base_folders" in scan_table:
+        base_folders = _validate_patterns(scan_table, key="base_folders")
+        legacy_used = False
+    elif "folder_patterns" in scan_table:
+        base_folders = _validate_patterns(scan_table, key="folder_patterns")
+        legacy_used = True
+    else:
+        raise ConfigurationError(
+            "scan.base_folders (or legacy scan.folder_patterns) must be "
+            "a non-empty array."
+        )
+
+    # directory_names: explicit (may be empty to disable hints), or legacy
+    # compat promotion of bare names from old folder_patterns lists.
+    if "directory_names" in scan_table:
+        directory_names = _validate_optional_patterns(scan_table, key="directory_names")
+    elif legacy_used:
+        # Auto-promote simple bare directory names from old-style folder_patterns
+        # so users get broader discovery "for free" during transition.
+        directory_names = tuple(
+            p for p in base_folders if "/" not in p and not glob.has_magic(p)
+        )
+    else:
+        directory_names = ()
+
+    # ignore_directories: start with safe defaults, extend with user list
+    # (user may provide empty list to drop all defaults).
+    if "ignore_directories" in scan_table:
+        user_ignores = _validate_optional_patterns(scan_table, key="ignore_directories")
+        ignore_directories = tuple(
+            dict.fromkeys(DEFAULT_IGNORE_DIRECTORIES + user_ignores)
+        )
+    else:
+        ignore_directories = DEFAULT_IGNORE_DIRECTORIES
+
+    filename_patterns = _validate_patterns(scan_table, key="filename_patterns")
 
     section = ScanConfigSection(
         config_file_path=config_path,
-        folder_patterns=_validate_patterns(scan_table, key="folder_patterns"),
-        filename_patterns=_validate_patterns(scan_table, key="filename_patterns"),
+        base_folders=base_folders,
+        directory_names=directory_names,
+        ignore_directories=ignore_directories,
+        filename_patterns=filename_patterns,
     )
 
     return SearchConfiguration(
         config_file_path=section.config_file_path,
         execution_root=root_path,
-        folder_patterns=section.folder_patterns,
+        base_folders=section.base_folders,
+        directory_names=section.directory_names,
+        ignore_directories=section.ignore_directories,
         filename_patterns=section.filename_patterns,
     )
 
@@ -78,6 +151,38 @@ def _validate_patterns(scan_table: dict[str, Any], *, key: str) -> tuple[str, ..
         raise ConfigurationError(
             f"scan.{key} must be a non-empty array of pattern strings."
         )
+
+    patterns: list[str] = []
+    for index, raw_value in enumerate(value, start=1):
+        if not isinstance(raw_value, str):
+            raise ConfigurationError(f"scan.{key}[{index}] must be a string pattern.")
+
+        normalized = raw_value.strip()
+        if not normalized:
+            raise ConfigurationError(
+                f"scan.{key}[{index}] must not be blank or whitespace-only."
+            )
+        patterns.append(normalized)
+
+    return tuple(patterns)
+
+
+def _validate_optional_patterns(
+    scan_table: dict[str, Any], *, key: str
+) -> tuple[str, ...]:
+    """Like _validate_patterns but allows empty (meaning 'none' for hints/ignores)."""
+    value = scan_table.get(key)
+
+    if value is None:
+        return ()
+
+    if not isinstance(value, list):
+        raise ConfigurationError(
+            f"scan.{key} must be an array of pattern strings (or omitted/empty)."
+        )
+
+    if not value:
+        return ()
 
     patterns: list[str] = []
     for index, raw_value in enumerate(value, start=1):

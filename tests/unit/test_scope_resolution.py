@@ -11,7 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from check_unprotected_keys.adapters.filesystem import resolve_effective_scope
+from check_unprotected_keys.adapters.filesystem import (
+    discover_candidate_files,
+    resolve_effective_scope,
+)
 from check_unprotected_keys.config.loader import load_search_configuration
 from check_unprotected_keys.domain.scope import (
     build_effective_scope,
@@ -171,3 +174,115 @@ def test_resolve_start_folder_raises_for_unreadable_directory(tmp_path: Path) ->
     finally:
         # Restore for tmp cleanup (project pattern in fixture_builders)
         sub.chmod(0o700)
+
+
+# -------------------------------------------------------------------
+# Dedicated unit tests for promotion + pruning + provenance (005 US2/US3)
+# -------------------------------------------------------------------
+
+
+def test_resolve_effective_scope_promotes_directory_hints(tmp_path: Path) -> None:
+    """Promotion discovers hinted subdirs at depth under a base (T019)."""
+    from tests.support.fixture_builders import write_scan_configuration
+
+    base = tmp_path / "project"
+    secrets = base / "apps" / "api" / "secrets"
+    deploy = base / "services" / "bar" / "deploy"
+    secrets.mkdir(parents=True)
+    deploy.mkdir(parents=True)
+
+    write_scan_configuration(
+        tmp_path,
+        base_folders=("project",),
+        directory_names=("secrets", "deploy"),
+        filename_patterns=("*.key", "id_*"),
+    )
+    configuration = load_search_configuration(tmp_path)
+
+    scope = resolve_effective_scope(configuration, start_folder=None)
+
+    roots = {p.relative_to(tmp_path) for p in scope.root_directories}
+    assert Path("project") in roots
+    assert Path("project/apps/api/secrets") in roots
+    assert Path("project/services/bar/deploy") in roots
+
+    # Provenance for promoted roots contains the hint
+    assert "hint:secrets" in scope.root_provenance.get(secrets.resolve(), "")
+    assert "hint:deploy" in scope.root_provenance.get(deploy.resolve(), "")
+
+
+def test_resolve_effective_scope_pruning_prevents_promotion_and_walk(
+    tmp_path: Path,
+) -> None:
+    """ignore_directories prevents both promotion and candidate discovery (T026)."""
+    from tests.support.fixture_builders import write_scan_configuration
+
+    base = tmp_path / "project"
+    secrets = base / "apps" / "api" / "secrets"
+    noise = base / "node_modules" / "pkg" / "secrets"  # same name as hint, but ignored
+    secrets.mkdir(parents=True)
+    noise.mkdir(parents=True)
+
+    # A file that would match if not pruned
+    (noise / "id_rsa").write_text("dummy", encoding="utf-8")
+    (secrets / "id_rsa").write_text("dummy", encoding="utf-8")
+
+    write_scan_configuration(
+        tmp_path,
+        base_folders=("project",),
+        directory_names=("secrets",),
+        # Explicitly ignore node_modules (in addition to defaults)
+        ignore_directories=("node_modules",),
+        filename_patterns=("id_*",),
+    )
+    configuration = load_search_configuration(tmp_path)
+
+    scope = resolve_effective_scope(configuration, start_folder=None)
+    roots = {p.relative_to(tmp_path) for p in scope.root_directories}
+
+    # The hinted "secrets" under apps is promoted; the one under node_modules is not
+    assert Path("project/apps/api/secrets") in roots
+    assert Path("project/node_modules/pkg/secrets") not in roots
+
+    # When we actually discover candidates, the noise file must not appear
+    # (pruning in discover_candidate_files + promotion)
+    candidates, _ = discover_candidate_files(scope)
+    cand_rel = {c.canonical_path.relative_to(tmp_path) for c in candidates}
+    assert Path("project/apps/api/secrets/id_rsa") in cand_rel
+    assert Path("project/node_modules/pkg/secrets/id_rsa") not in cand_rel
+
+
+def test_promotion_and_base_coverage_produce_candidates_with_rich_labels(
+    tmp_path: Path,
+) -> None:
+    """Candidates under promoted dirs get rich "base:..., hint:..." labels.
+
+    Base-only files get a plain "base:..." label. (T020/T023)
+    """
+    from tests.support.fixture_builders import write_scan_configuration
+
+    base = tmp_path / "ws"
+    hinted = base / "config" / "secrets"
+    non_hinted = base / "misc"
+    hinted.mkdir(parents=True)
+    non_hinted.mkdir(parents=True)
+
+    (hinted / "deploy.key").write_text("pem-stuff", encoding="utf-8")
+    (non_hinted / "id_rsa").write_text("pem-stuff", encoding="utf-8")
+
+    write_scan_configuration(
+        tmp_path,
+        base_folders=("ws",),
+        directory_names=("secrets",),
+        filename_patterns=("*.key", "id_*"),
+    )
+    configuration = load_search_configuration(tmp_path)
+
+    scope = resolve_effective_scope(configuration, start_folder=None)
+    cands, _ = discover_candidate_files(scope)
+
+    labels = {c.matched_folder_pattern for c in cands}
+    # At least one rich promoted label
+    assert any("hint:secrets" in lab and "base:" in lab for lab in labels)
+    # At least one base-only label (the non-hinted id_rsa)
+    assert any(lab.startswith("base:") and "hint:" not in lab for lab in labels)

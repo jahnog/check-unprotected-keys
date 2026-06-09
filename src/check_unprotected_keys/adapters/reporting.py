@@ -48,11 +48,13 @@ def _emit_issue_summary(result: ScanResult, stderr_stream: TextIO) -> None:
 
     summary_parts = []
     if result.malformed_count:
-        summary_parts.append(f"{result.malformed_count} malformed")
+        summary_parts.append(
+            f"{result.malformed_count} files without detected private keys"
+        )
     if result.unreadable_count:
-        summary_parts.append(f"{result.unreadable_count} unreadable")
+        summary_parts.append(f"{result.unreadable_count} files that could not be read")
     print(
-        "Could not fully evaluate " + ", ".join(summary_parts) + " file(s).",
+        "Could not fully evaluate " + ", ".join(summary_parts) + ".",
         file=stderr_stream,
     )
 

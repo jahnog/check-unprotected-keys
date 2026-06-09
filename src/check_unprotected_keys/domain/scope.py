@@ -61,6 +61,9 @@ def narrow_root_directories(
 def build_effective_scope(
     root_directories: Iterable[Path],
     filename_patterns: Iterable[str],
+    *,
+    ignore_directories: Iterable[str] | None = None,
+    root_provenance: dict[Path, str] | None = None,
 ) -> EffectiveScope:
     """Create an immutable effective scope from resolved directories and patterns."""
 
@@ -73,8 +76,13 @@ def build_effective_scope(
         canonical_roots.append(canonical_path)
         seen_paths.add(canonical_path)
 
+    ignores = frozenset(ignore_directories or ())
+    provenance = dict(root_provenance or {})
+
     return EffectiveScope(
         root_directories=tuple(canonical_roots),
         filename_patterns=tuple(filename_patterns),
         canonical_root_set=frozenset(canonical_roots),
+        ignore_directories=ignores,
+        root_provenance=provenance,
     )
