@@ -1,41 +1,60 @@
-# Curated expanded default catalog.
-# Excluded by default: public-only files such as *.pub or known_hosts,
-# certificate-only outputs such as *.crt or *.csr, unsupported keystore
-# families such as *.p12 or *.jks, generic structured config formats such as
-# *.json or *.yaml, and generic token-hunting globs.
-# Matching findings stay on stdout as canonical paths. Operator-safe malformed
-# file logs and low-friction protection guidance are emitted on stderr.
+# Broad but controlled discovery model.
+#
+# base_folders: the ancestor trees you authorize the scanner to explore.
+#   Use broad entries like ".", specific project roots, or "~/.config".
+#   The scanner will walk these (pruned) and apply filename_patterns anywhere underneath.
+#   Include user-specific important locations such as cloud sync folders and secret stores.
+#
+# directory_names: common names of directories that typically hold private key material.
+#   These are automatically discovered (promoted) at any depth under your base_folders.
+#   No **/ globs required. This gives broad coverage with low maintenance.
+#
+# ignore_directories: directories that are never descended into (pruning).
+#   Defaults cover common VCS, build, cache, and dependency dirs.
+#   Add your own to extend the defaults. Use an empty list to disable all ignores.
+#
+# filename_patterns + the key parser (PEM/OpenSSH/PuTTY blocks, embedded secrets)
+# provide the actual recall inside the authorized trees. Files that do not contain
+# private key material are reported with a clear "no detected private keys" message
+# on stderr (keeps stdout clean).
+#
+# Excluded by default: public-only (*.pub, authorized_keys, known_hosts),
+# certificate-only (*.crt, *.csr), unsupported keystores (*.p12, *.jks),
+# generic structured configs, generic token hunting.
+#
+# Findings: canonical paths on stdout only.
+# Summaries for files without detected private keys + files that could not be read
+# + usage-aware remediation on stderr.
 [scan]
-folder_patterns = [
-  "~/.ssh",
-  ".ssh",
-  "keys",
-  "private",
-  "certs",
-  "certificates",
-  "tls",
-  "ssl",
-  "pki",
-  "secrets",
-  "config/keys",
-  "config/certs",
-  "config/tls",
-  "config/secrets",
-  ".config/keys",
-  ".config/certs",
-  ".config/tls",
-  ".config/secrets",
-  "deploy",
-  "deployment",
-  "infra",
-  "ansible",
-  "terraform",
-  "docker",
-  "helm",
-  "k8s",
-  "kubernetes",
-  "vpn",
-  "openvpn"
+base_folders = [
+  ".",
+  # Important user locations (expand ~ as needed)
+  # "~/Insync",
+  # "~/.gnupg",
+  # "~/.config/JetBrains",
+  # "~/.config/Cursor",
+  # "~/.config/Code",
+  # "~/.ssh",
+]
+
+directory_names = [
+  ".ssh", "ssh",
+  "secrets", "keys", "private",
+  "certs", "certificates", "tls", "ssl", "pki",
+  "deploy", "deployment", "infra",
+  "ansible", "terraform",
+  "docker", "helm", "k8s", "kubernetes",
+  "vpn", "openvpn", "wireguard",
+  # Common cloud sync and config locations for personal keys
+  "Docs", "OneDrive", "Insync",
+  "gnupg", "private-keys-v1.d",
+  "JetBrains", "PyCharm", "Cursor", "Code",
+  "History",
+]
+
+ignore_directories = [
+  # Extend the built-in safe defaults. Common ones already included:
+  # .git, node_modules, .venv, target, dist, __pycache__, .idea, etc.
 ]
 
 filename_patterns = [
@@ -45,6 +64,7 @@ filename_patterns = [
   "*.ppk",
   "*.pem",
   "*.key",
+  "pycharm.key",
   ".env",
   ".env.*",
   "*.env",

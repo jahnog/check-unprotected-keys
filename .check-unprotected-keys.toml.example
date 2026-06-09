@@ -8,6 +8,7 @@
 [scan]
 folder_patterns = [
   "~/.ssh",
+  "**/ssh",
   ".ssh",
   "keys",
   "private",
