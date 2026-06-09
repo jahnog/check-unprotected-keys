@@ -37,7 +37,7 @@ filename_patterns = ["  id_*  ", "  *.ppk  "]
     configuration = load_search_configuration(tmp_path)
 
     assert configuration.execution_root == tmp_path.resolve()
-    assert configuration.folder_patterns == (
+    assert configuration.base_folders == (
         "fixtures/default-scope",
         str(absolute_scope),
     )
@@ -91,7 +91,7 @@ def test_load_search_configuration_allows_duplicate_patterns_for_later_dedup(
 
     configuration = load_search_configuration(tmp_path)
 
-    assert configuration.folder_patterns == (
+    assert configuration.base_folders == (
         "fixtures/default-scope",
         "fixtures/default-scope",
     )
@@ -114,7 +114,7 @@ def test_load_search_configuration_preserves_tilde_prefixed_folder_patterns(
 
     configuration = load_search_configuration(tmp_path)
 
-    assert configuration.folder_patterns == (
+    assert configuration.base_folders == (
         "~/.ssh",
         "fixtures/expanded-patterns/repo-keys",
     )
@@ -129,5 +129,5 @@ def test_load_search_configuration_reads_expanded_default_catalog(
 
     configuration = load_search_configuration(workspace.root)
 
-    assert configuration.folder_patterns == EXPANDED_FOLDER_PATTERNS
+    assert configuration.base_folders == EXPANDED_FOLDER_PATTERNS
     assert configuration.filename_patterns == EXPANDED_FILENAME_PATTERNS

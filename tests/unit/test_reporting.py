@@ -61,7 +61,7 @@ def test_emit_scan_result_reports_malformed_only_without_findings() -> None:
     assert stdout.getvalue() == ""
     assert nonempty_output_lines(stderr.getvalue()) == (
         "Checked 1 file(s). Found 0 violation(s).",
-        "Could not fully evaluate 1 malformed file(s).",
+        "Could not fully evaluate 1 files without detected private keys.",
         malformed_path,
         "Issue categories: malformed=1",
     )

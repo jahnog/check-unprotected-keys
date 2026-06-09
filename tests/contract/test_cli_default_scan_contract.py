@@ -93,7 +93,11 @@ def test_default_scan_contract_summarizes_malformed_and_unreadable_files(
 
     captured = capsys.readouterr()
 
-    assert "Could not fully evaluate 1 malformed, 1 unreadable file(s)." in captured.err
+    expected = (
+        "Could not fully evaluate 1 files without detected private keys, "
+        "1 files that could not be read."
+    )
+    assert expected in captured.err
     assert str(workspace.malformed_key) in captured.err
     assert str(workspace.malformed_key) not in captured.out
 
@@ -165,7 +169,7 @@ def test_cli_can_print_packaged_example_configuration(capsys) -> None:
 
     assert exit_code == 0
     assert "[scan]" in captured.out
-    assert "folder_patterns = [" in captured.out
+    assert "base_folders = [" in captured.out
     assert "filename_patterns = [" in captured.out
     assert captured.err == ""
 

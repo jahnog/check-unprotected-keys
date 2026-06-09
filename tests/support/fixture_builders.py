@@ -396,23 +396,48 @@ def create_expanded_noise_workspace(root: Path) -> ExpandedPatternWorkspace:
 def write_scan_configuration(
     root: Path,
     *,
-    folder_patterns: tuple[str, ...],
+    folder_patterns: tuple[str, ...] | None = None,
+    base_folders: tuple[str, ...] | None = None,
+    directory_names: tuple[str, ...] | None = None,
+    ignore_directories: tuple[str, ...] | None = None,
     filename_patterns: tuple[str, ...] = DEFAULT_FILENAME_PATTERNS,
 ) -> Path:
-    """Write the scanner TOML configuration in the workspace root."""
+    """Write the scanner TOML configuration in the workspace root.
+
+    Accepts either base_folders (preferred, modern) or folder_patterns (legacy alias)
+    for the search bases list. Writes using the modern 'base_folders' key.
+    Also supports writing directory_names and ignore_directories when provided.
+    """
+
+    if base_folders is None:
+        if folder_patterns is None:
+            raise ValueError(
+                "write_scan_configuration requires base_folders or folder_patterns"
+            )
+        bases = folder_patterns
+    else:
+        bases = base_folders
 
     config_path = root / ".check-unprotected-keys.toml"
-    folder_entries = "\n".join(f'  "{pattern}",' for pattern in folder_patterns)
+    folder_entries = "\n".join(f'  "{pattern}",' for pattern in bases)
     filename_entries = "\n".join(f'  "{pattern}",' for pattern in filename_patterns)
+
+    extra_sections = ""
+    if directory_names:
+        dn_entries = "\n".join(f'  "{p}",' for p in directory_names)
+        extra_sections += f"\ndirectory_names = [\n{dn_entries}\n]\n"
+    if ignore_directories:
+        ign_entries = "\n".join(f'  "{p}",' for p in ignore_directories)
+        extra_sections += f"\nignore_directories = [\n{ign_entries}\n]\n"
 
     config_path.write_text(
         dedent(
             f"""
             [scan]
-            folder_patterns = [
+            base_folders = [
             {folder_entries}
             ]
-
+            {extra_sections}
             filename_patterns = [
             {filename_entries}
             ]
@@ -427,14 +452,23 @@ def write_scan_configuration(
 def write_expanded_scan_configuration(
     root: Path,
     *,
-    folder_patterns: tuple[str, ...] = EXPANDED_FOLDER_PATTERNS,
+    folder_patterns: tuple[str, ...] | None = None,
+    base_folders: tuple[str, ...] | None = None,
     filename_patterns: tuple[str, ...] = EXPANDED_FILENAME_PATTERNS,
 ) -> Path:
     """Write the expanded-catalog configuration used by later feature tests."""
 
+    if base_folders is None:
+        effective = (
+            folder_patterns if folder_patterns is not None else EXPANDED_FOLDER_PATTERNS
+        )
+    else:
+        effective = base_folders
+
     return write_scan_configuration(
         root,
         folder_patterns=folder_patterns,
+        base_folders=effective,
         filename_patterns=filename_patterns,
     )
 
@@ -442,14 +476,25 @@ def write_expanded_scan_configuration(
 def write_recommendation_scan_configuration(
     root: Path,
     *,
-    folder_patterns: tuple[str, ...] = REMEDIATION_FOLDER_PATTERNS,
+    folder_patterns: tuple[str, ...] | None = None,
+    base_folders: tuple[str, ...] | None = None,
     filename_patterns: tuple[str, ...] = REMEDIATION_FILENAME_PATTERNS,
 ) -> Path:
     """Write the guidance-focused configuration used by recommendation tests."""
 
+    if base_folders is None:
+        effective = (
+            folder_patterns
+            if folder_patterns is not None
+            else REMEDIATION_FOLDER_PATTERNS
+        )
+    else:
+        effective = base_folders
+
     return write_scan_configuration(
         root,
         folder_patterns=folder_patterns,
+        base_folders=effective,
         filename_patterns=filename_patterns,
     )
 
@@ -549,4 +594,70 @@ def _serialize_pem_private_key(*, encrypted: bool) -> bytes:
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=encryption,
+    )
+
+
+@dataclass(slots=True)
+class BroadDiscoveryWorkspace:
+    """A workspace exercising broad base + directory name promotion + pruning.
+
+    Used for dedicated integration tests of the 005 feature (T009/T013/T027).
+    Contains:
+    - A broad base root.
+    - Hinted directories at depth with key material (promoted roots).
+    - Non-hinted locations with filename-matching key files (covered by base walk).
+    - Noise/ignored directories containing files that would otherwise match patterns.
+    """
+
+    root: Path
+    base_root: Path
+    secrets_root: Path  # e.g. apps/api/secrets (hinted)
+    deploy_root: Path  # e.g. services/bar/deploy (hinted)
+    non_hinted_key: Path  # e.g. top-level-keys/id_rsa (under base, no hint)
+    noise_key: Path  # inside node_modules or similar (should be pruned)
+    hinted_finding: Path  # one promoted finding path
+    base_finding: Path  # one non-hinted base finding path
+
+
+def create_broad_discovery_workspace(root: Path) -> BroadDiscoveryWorkspace:
+    """Create a workspace for testing broad discovery + promotion + pruning.
+
+    "project" base with:
+    - Deep hinted dirs (e.g. apps/.../secrets, services/.../deploy) + key files.
+    - Non-hinted subdir with filename-matching key (base coverage proof).
+    - Noise dir (node_modules/...) with would-be match (should be pruned).
+    """
+    workspace_root = root.resolve()
+    base_root = workspace_root / "project"
+    secrets_root = base_root / "apps" / "api" / "secrets"
+    deploy_root = base_root / "services" / "bar" / "deploy"
+    non_hinted_dir = base_root / "top-level-keys"
+    noise_dir = base_root / "node_modules" / "some-pkg"
+
+    for d in (secrets_root, deploy_root, non_hinted_dir, noise_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    # Hinted findings (promoted when the dir names are in directory_names)
+    hinted_pem = secrets_root / "db.key"  # *.key matches common patterns
+    hinted_openssh = deploy_root / "id_ed25519"
+    write_pem_private_key(hinted_pem, encrypted=False)
+    write_openssh_private_key(hinted_openssh, encrypted=False)
+
+    # Non-hinted but under base (filename pattern should still catch it)
+    base_finding = non_hinted_dir / "my_custom.pem"
+    write_pem_private_key(base_finding, encrypted=False)
+
+    # Noise (will be pruned if "node_modules" or similar is in ignore_directories)
+    noise_key = noise_dir / "leaked.key"
+    write_pem_private_key(noise_key, encrypted=False)
+
+    return BroadDiscoveryWorkspace(
+        root=workspace_root,
+        base_root=base_root.resolve(),
+        secrets_root=secrets_root.resolve(),
+        deploy_root=deploy_root.resolve(),
+        non_hinted_key=non_hinted_dir.resolve(),
+        noise_key=noise_key.resolve(),
+        hinted_finding=hinted_pem.resolve(),
+        base_finding=base_finding.resolve(),
     )
