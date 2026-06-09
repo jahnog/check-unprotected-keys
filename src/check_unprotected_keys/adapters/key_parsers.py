@@ -48,7 +48,7 @@ def inspect_candidate_file(candidate_path: Path) -> ProtectionAssessment:
         return build_assessment(
             ProtectionClassification.UNREADABLE,
             format_hint="filesystem",
-            message=f"{candidate_path.name} could not be read: {type(exc).__name__}",
+            message=f"It was not possible to read the file: {type(exc).__name__}",
         )
 
     assessments = _collect_assessments(payload)
@@ -56,7 +56,7 @@ def inspect_candidate_file(candidate_path: Path) -> ProtectionAssessment:
         return build_assessment(
             ProtectionClassification.MALFORMED,
             format_hint="unknown",
-            message=f"{candidate_path.name} does not contain supported key material.",
+            message=f"No private keys were detected in {candidate_path.name}.",
         )
     return select_file_assessment(assessments)
 

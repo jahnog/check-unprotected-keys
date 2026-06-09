@@ -40,11 +40,19 @@ class CandidateState(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class SearchConfiguration:
-    """Validated runtime search configuration."""
+    """Validated runtime search configuration.
+
+    base_folders (preferred) or legacy folder_patterns define the ancestor
+    trees (search bases) the scanner is authorized to explore.
+    directory_names enable automatic promotion of high-value subdirectories.
+    ignore_directories provide pruning for broad bases.
+    """
 
     config_file_path: Path
     execution_root: Path
-    folder_patterns: tuple[str, ...]
+    base_folders: tuple[str, ...]
+    directory_names: tuple[str, ...]
+    ignore_directories: tuple[str, ...]
     filename_patterns: tuple[str, ...]
 
 
@@ -59,11 +67,20 @@ class ScanRequest:
 
 @dataclass(frozen=True, slots=True)
 class EffectiveScope:
-    """The resolved directories and filename rules for a scan."""
+    """The resolved directories and filename rules for a scan.
+
+    ignore_directories may be carried for pruning during candidate walks
+    (populated from configuration at resolution time).
+
+    root_provenance (optional) maps each root to a rich label of the form
+    "base:..., hint:..." (or just "base:...") for use in matched_folder_pattern.
+    """
 
     root_directories: tuple[Path, ...]
     filename_patterns: tuple[str, ...]
     canonical_root_set: frozenset[Path]
+    ignore_directories: frozenset[str] = frozenset()
+    root_provenance: dict[Path, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

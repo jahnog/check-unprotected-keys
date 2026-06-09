@@ -8,8 +8,14 @@ from pathlib import Path
 
 @dataclass(frozen=True, slots=True)
 class ScanConfigSection:
-    """Raw scan settings loaded from the TOML configuration document."""
+    """Raw scan settings loaded from the TOML configuration document.
+
+    base_folders (or legacy folder_patterns) are the search bases.
+    directory_names and ignore_directories support the broad discovery model.
+    """
 
     config_file_path: Path
-    folder_patterns: tuple[str, ...]
+    base_folders: tuple[str, ...]
+    directory_names: tuple[str, ...]
+    ignore_directories: tuple[str, ...]
     filename_patterns: tuple[str, ...]
