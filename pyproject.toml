@@ -33,7 +33,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    "cryptography>=46.0.7,<47.0",
+    "cryptography>=48.0.1,<49.0",
 ]
 
 [project.urls]
