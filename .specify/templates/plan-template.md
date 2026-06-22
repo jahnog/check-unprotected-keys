@@ -45,13 +45,18 @@
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 - Architecture keeps CLI adapters, application services, domain logic, and
-  infrastructure concerns separated; any non-trivial pattern choice is named
-  and justified.
+  infrastructure concerns separated, honors the five SOLID tenets, and any
+  non-trivial pattern choice is named and justified.
 - Public interfaces, DTOs, and cross-module seams are typed and follow Clean
-  Code naming and responsibility rules.
+  Code, DRY, and KISS rules; no duplicated logic or speculative complexity is
+  introduced.
 - Unit tests for new or changed behavior are identified, required integration
   or contract tests are called out, and coverage reporting plus the enforced
   threshold are documented.
+- The plan states that, after implementation, the full unit-test suite and
+  coverage report will be run, and that any failing test will be triaged (test
+  logic vs. implementation logic) and the conclusion recorded before either the
+  test or the code is changed.
 - Linting, formatting, and static analysis commands are listed exactly as they
   will run in local and CI workflows.
 - Standalone executable packaging, artifact smoke tests, and deployment or

@@ -101,9 +101,13 @@
 ### Non-Functional Requirements *(mandatory)*
 
 - **NFR-001**: Feature MUST preserve explicit boundaries between CLI
-  entrypoints, application services, domain logic, and infrastructure concerns.
-- **NFR-002**: Feature MUST describe required unit tests, any needed
-  integration or contract tests, and the expected coverage-report impact.
+  entrypoints, application services, domain logic, and infrastructure concerns,
+  and MUST comply with SOLID, Clean Code, DRY, and KISS.
+- **NFR-002**: Feature MUST describe required unit tests that validate the
+  change, any needed integration or contract tests, and the expected
+  coverage-report impact; after implementation the full unit-test suite and
+  coverage report are run, with any failing test triaged (test logic vs.
+  implementation logic) before the test or code is changed.
 - **NFR-003**: Feature MUST remain compliant with the project's linting,
   formatting, and static analysis gates.
 - **NFR-004**: Feature MUST state whether standalone packaging, entry points,

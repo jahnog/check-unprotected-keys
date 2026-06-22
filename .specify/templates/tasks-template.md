@@ -158,6 +158,7 @@ Examples of foundational tasks (adjust based on your project):
 
 - [ ] TXXX [P] Documentation updates in docs/
 - [ ] TXXX Code cleanup and refactoring
+- [ ] TXXX Run the full unit-test suite and coverage report after implementation; triage any failing test (test logic vs. implementation logic), record the conclusion, and only then fix the test or the code
 - [ ] TXXX [P] Run formatter, linter, static analysis, pytest, and coverage reporting commands
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Close remaining unit-test and coverage gaps in tests/unit/
@@ -188,6 +189,9 @@ Examples of foundational tasks (adjust based on your project):
 
 - Unit tests MUST be written and FAIL before implementation; add integration or
   contract tests whenever boundary changes require them
+- After implementing, run the full unit-test suite and coverage report; when a
+  test fails, first determine whether the test's logic or the implementation's
+  logic is incorrect, record the conclusion, and only then fix the test or code
 - Models before services
 - Services before endpoints
 - Core implementation before integration
@@ -255,6 +259,9 @@ With multiple developers:
 - [Story] label maps task to specific user story for traceability
 - Each user story should be independently completable and testable
 - Verify tests fail before implementing
+- After implementation, run all unit tests and the coverage report; triage any
+  failure (test logic vs. implementation logic) before changing the test or code
+- Code MUST satisfy SOLID, Clean Code, DRY, and KISS
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence

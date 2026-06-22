@@ -7,6 +7,7 @@
 # file logs and low-friction protection guidance are emitted on stderr.
 [scan]
 folder_patterns = [
+  "~/Documents",
   "~/.ssh",
   "**/ssh",
   ".ssh",
