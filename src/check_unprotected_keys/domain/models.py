@@ -54,6 +54,7 @@ class SearchConfiguration:
     directory_names: tuple[str, ...]
     ignore_directories: tuple[str, ...]
     filename_patterns: tuple[str, ...]
+    max_directory_visits: int = 100_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,9 +144,12 @@ class ScanResult:
     malformed_issues: list[MalformedScanIssue] = field(default_factory=list)
     unreadable_count: int = 0
     error_summaries: dict[str, int] = field(default_factory=dict)
+    directory_limit_exceeded: bool = False
 
     @property
     def exit_code(self) -> int:
+        if self.directory_limit_exceeded:
+            return 2
         return 1 if self.findings else 0
 
     @property

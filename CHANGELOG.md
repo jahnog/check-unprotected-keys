@@ -8,6 +8,7 @@ The format follows Keep a Changelog and the project uses Semantic Versioning.
 
 ### Added
 
+- symbolic links are now followed during recursive directory traversal; cycles and aliased directories are handled automatically via an inode+device single-visit guarantee, and a configurable `scan.max_directory_visits` hard cap (default 100,000) aborts with exit code 2 when reached
 - packaged example configuration available through `--print-example-config`
 - `python -m check_unprotected_keys` module entrypoint support
 - release validation guide and automated publish workflow

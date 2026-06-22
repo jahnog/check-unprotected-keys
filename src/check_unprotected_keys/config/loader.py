@@ -126,12 +126,23 @@ def load_search_configuration(
 
     filename_patterns = _validate_patterns(scan_table, key="filename_patterns")
 
+    raw_limit = scan_table.get("max_directory_visits")
+    if raw_limit is None:
+        max_directory_visits = 100_000
+    elif not isinstance(raw_limit, int) or raw_limit < 1:
+        raise ConfigurationError(
+            "scan.max_directory_visits must be a positive integer."
+        )
+    else:
+        max_directory_visits = raw_limit
+
     section = ScanConfigSection(
         config_file_path=config_path,
         base_folders=base_folders,
         directory_names=directory_names,
         ignore_directories=ignore_directories,
         filename_patterns=filename_patterns,
+        max_directory_visits=max_directory_visits,
     )
 
     return SearchConfiguration(
@@ -141,6 +152,7 @@ def load_search_configuration(
         directory_names=section.directory_names,
         ignore_directories=section.ignore_directories,
         filename_patterns=section.filename_patterns,
+        max_directory_visits=section.max_directory_visits,
     )
 
 

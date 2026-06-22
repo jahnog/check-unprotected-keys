@@ -19,3 +19,4 @@ class ScanConfigSection:
     directory_names: tuple[str, ...]
     ignore_directories: tuple[str, ...]
     filename_patterns: tuple[str, ...]
+    max_directory_visits: int = 100_000

@@ -57,6 +57,12 @@ ignore_directories = [
   # .git, node_modules, .venv, target, dist, __pycache__, .idea, etc.
 ]
 
+# max_directory_visits = 100000
+# Maximum number of distinct directories the scanner may visit in a single run.
+# Symbolic links are now followed; this cap prevents unbounded traversal on large
+# or adversarially crafted trees. When reached the scan aborts with exit code 2.
+# Raise this value for large enterprise mounts; lower it as a safety valve.
+
 filename_patterns = [
   "id_*",
   "identity",

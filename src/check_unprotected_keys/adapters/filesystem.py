@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import glob
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,84 @@ from check_unprotected_keys.domain.models import (
     EffectiveScope,
     SearchConfiguration,
 )
+
+_logger = logging.getLogger(__name__)
+
+
+class DirectoryLimitExceededError(RuntimeError):
+    """Raised when the visited-directory count reaches the configured hard cap."""
+
+    def __init__(self, limit: int, path: Path) -> None:
+        self.limit = limit
+        self.path = path
+        super().__init__(
+            f"Directory visit limit ({limit}) reached at: {path}. Scan is incomplete."
+        )
+
+
+class VisitedDirectoryTracker:
+    """Tracks visited directories by OS-level identity.
+
+    Uses (st_ino, st_dev) as the directory key so bind mounts and
+    case-insensitive filesystem aliases are correctly deduplicated.
+    """
+
+    def __init__(self, limit: int) -> None:
+        self._visited: set[tuple[int, int]] = set()
+        self._limit = limit
+
+    def try_visit(self, path: Path) -> bool:
+        """Stat path and record as visited if new.
+
+        Returns True if the directory is newly visited (caller should descend).
+        Returns False if already visited (caller should skip).
+        Raises OSError if path cannot be stat'd (broken or inaccessible link).
+        Raises DirectoryLimitExceededError if the cap is reached before adding.
+        """
+        stat = path.stat()
+        key = (stat.st_ino, stat.st_dev)
+        if key in self._visited:
+            return False
+        if len(self._visited) >= self._limit:
+            raise DirectoryLimitExceededError(self._limit, path)
+        self._visited.add(key)
+        return True
+
+    @property
+    def visited_count(self) -> int:
+        return len(self._visited)
+
+
+def _prune_with_visit_check(
+    dirnames: list[str],
+    current_path: Path,
+    ignore_set: frozenset[str],
+    tracker: VisitedDirectoryTracker,
+    issues: list[DiscoveryIssue] | None = None,
+) -> None:
+    """Mutate dirnames in-place: remove ignored, already-visited, or inaccessible dirs.
+
+    Raises DirectoryLimitExceededError if the tracker cap is hit.
+    """
+    safe: list[str] = []
+    for name in dirnames:
+        if name in ignore_set:
+            continue
+        sub = current_path / name
+        try:
+            if tracker.try_visit(sub):
+                safe.append(name)
+            else:
+                _logger.debug("skipping already-visited directory: %s", sub)
+        except DirectoryLimitExceededError:
+            raise
+        except OSError as exc:
+            _logger.debug("skipping inaccessible link: %s (%s)", sub, exc)
+            if issues is not None:
+                issues.append(
+                    DiscoveryIssue(location=sub, error_type=type(exc).__name__)
+                )
+    dirnames[:] = safe
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +107,7 @@ def resolve_effective_scope(
     configuration: SearchConfiguration,
     *,
     start_folder: Path | None,
+    visited_tracker: VisitedDirectoryTracker | None = None,
 ) -> EffectiveScope:
     """Resolve search bases (and later directory name promotion + pruning)
     and apply optional start-folder narrowing.
@@ -47,11 +127,15 @@ def resolve_effective_scope(
     # Directory name promotion (US2): discover additional high-value subdirs
     # under the (already narrowed) bases.
     ignore_set = frozenset(configuration.ignore_directories)
+    # Use a fresh tracker for the promotion walk so it doesn't pre-mark
+    # directories that discover_candidate_files still needs to enter.
+    promote_tracker = VisitedDirectoryTracker(limit=configuration.max_directory_visits)
     promoted, sub_provenance = _discover_promoted_directories(
         narrowed_roots,
         configuration.directory_names,
         ignore_set,
         start_folder=start_folder,
+        visited_tracker=promote_tracker,
     )
 
     # Put promoted (more specific) roots first so that files under them
@@ -76,14 +160,28 @@ def resolve_effective_scope(
 
 def discover_candidate_files(
     scope: EffectiveScope,
+    *,
+    visited_tracker: VisitedDirectoryTracker | None = None,
 ) -> tuple[list[CandidateFile], list[DiscoveryIssue]]:
     """Enumerate unique candidate files inside the effective scope."""
 
+    tracker = visited_tracker or VisitedDirectoryTracker(limit=100_000)
     candidates: list[CandidateFile] = []
     issues: list[DiscoveryIssue] = []
     seen_paths: set[Path] = set()
 
     for root_directory in scope.root_directories:
+        # Mark root as visited; skip if already entered during the hint-promotion pass.
+        try:
+            if not tracker.try_visit(root_directory):
+                _logger.debug("skipping already-visited root: %s", root_directory)
+                continue
+        except OSError as exc:
+            issues.append(
+                DiscoveryIssue(location=root_directory, error_type=type(exc).__name__)
+            )
+            continue
+
         # Use rich provenance label ("base:..., hint:...") when available (for
         # candidates under promoted directories); fall back to the raw path.
         root_label = scope.root_provenance.get(root_directory, str(root_directory))
@@ -103,13 +201,11 @@ def discover_candidate_files(
             root_directory,
             topdown=True,
             onerror=on_error,
-            followlinks=False,
+            followlinks=True,
         ):
-            # Apply pruning for broad bases (US3)
-            if ignore_set:
-                dirnames[:] = [d for d in dirnames if d not in ignore_set]
-
             current_path = Path(current_root)
+            _prune_with_visit_check(dirnames, current_path, ignore_set, tracker, issues)
+
             for file_name in file_names:
                 matched_filename_pattern = _match_filename_pattern(
                     file_name,
@@ -178,6 +274,7 @@ def _discover_promoted_directories(
     ignore_names: frozenset[str],
     *,
     start_folder: Path | None = None,
+    visited_tracker: VisitedDirectoryTracker,
 ) -> tuple[list[Path], dict[Path, str]]:
     """Discover subdirectories under bases whose basename is in directory_names.
 
@@ -197,14 +294,21 @@ def _discover_promoted_directories(
     for base in bases:
         if not base.is_dir():
             continue
+
+        # Mark base as visited; skip if already entered.
+        try:
+            if not visited_tracker.try_visit(base):
+                _logger.debug("skipping already-visited base in hint pass: %s", base)
+                continue
+        except OSError:
+            continue
+
         base_str = str(base)
 
-        # Use topdown walk so we can prune ignores on the fly
-        for dirpath, dirnames, _ in os.walk(base, topdown=True, followlinks=False):
+        # Use topdown walk with symlink following so we can prune ignores and cycles.
+        for dirpath, dirnames, _ in os.walk(base, topdown=True, followlinks=True):
             current = Path(dirpath)
-
-            # Prune ignores in-place for efficiency
-            dirnames[:] = [d for d in dirnames if d not in ignore_names]
+            _prune_with_visit_check(dirnames, current, ignore_names, visited_tracker)
 
             # Check if this dir itself is a hinted one (but not the base root itself
             # unless it matches, which is already included via bases)
@@ -222,8 +326,5 @@ def _discover_promoted_directories(
                     promoted.append(canon)
                     seen.add(canon)
                     sub_provenance[canon] = f"base:{base_str}, hint:{current.name}"
-
-            # If we are deeper than needed or under ignored, the walk
-            # will handle pruning via the dirnames mutation above.
 
     return promoted, sub_provenance

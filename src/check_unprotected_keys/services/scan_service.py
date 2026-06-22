@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from check_unprotected_keys.adapters import filesystem, key_parsers
+from check_unprotected_keys.adapters.filesystem import (
+    DirectoryLimitExceededError,
+    VisitedDirectoryTracker,
+)
 from check_unprotected_keys.domain.classification import is_finding
 from check_unprotected_keys.domain.models import (
     CandidateFile,
@@ -180,11 +184,23 @@ class ScanService:
     """Coordinate scope resolution, candidate discovery, and file assessment."""
 
     def run(self, request: ScanRequest) -> ScanResult:
-        scope = filesystem.resolve_effective_scope(
-            request.configuration,
-            start_folder=request.start_folder,
+        tracker = VisitedDirectoryTracker(
+            limit=request.configuration.max_directory_visits
         )
-        candidates, issues = filesystem.discover_candidate_files(scope)
+        try:
+            scope = filesystem.resolve_effective_scope(
+                request.configuration,
+                start_folder=request.start_folder,
+                visited_tracker=tracker,
+            )
+            candidates, issues = filesystem.discover_candidate_files(
+                scope,
+                visited_tracker=tracker,
+            )
+        except DirectoryLimitExceededError:
+            result = ScanResult()
+            result.directory_limit_exceeded = True
+            return result
 
         result = ScanResult()
         for issue in issues:

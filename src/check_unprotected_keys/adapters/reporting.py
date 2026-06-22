@@ -20,6 +20,16 @@ def emit_scan_result(
     stdout_stream = sys.stdout if stdout is None else stdout
     stderr_stream = sys.stderr if stderr is None else stderr
 
+    if result.directory_limit_exceeded:
+        print(
+            "ERROR: Scan aborted — directory visit limit reached. "
+            "Results are incomplete.\n"
+            "Raise scan.max_directory_visits in your configuration "
+            "to scan larger trees, or narrow the scope with --start-folder.",
+            file=stderr_stream,
+        )
+        return
+
     for finding in result.findings:
         print(finding.file_path, file=stdout_stream)
 
