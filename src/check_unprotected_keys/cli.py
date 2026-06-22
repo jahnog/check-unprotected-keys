@@ -7,7 +7,11 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from check_unprotected_keys import __version__
-from check_unprotected_keys.adapters.reporting import emit_error, emit_scan_result
+from check_unprotected_keys.adapters.reporting import (
+    emit_error,
+    emit_scan_result,
+    emit_warning,
+)
 from check_unprotected_keys.config.loader import (
     ConfigurationError,
     load_search_configuration,
@@ -67,6 +71,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (ConfigurationError, ValueError) as exc:
         emit_error(str(exc))
         return 2
+
+    for warning in configuration.load_warnings:
+        emit_warning(warning)
 
     request = ScanRequest(
         execution_root=execution_root,

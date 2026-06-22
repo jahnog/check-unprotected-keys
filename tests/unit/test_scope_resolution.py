@@ -231,7 +231,7 @@ def test_resolve_effective_scope_pruning_prevents_promotion_and_walk(
         tmp_path,
         base_folders=("project",),
         directory_names=("secrets",),
-        # Explicitly ignore node_modules (in addition to defaults)
+        # Replace semantics: only node_modules is pruned
         ignore_directories=("node_modules",),
         filename_patterns=("id_*",),
     )

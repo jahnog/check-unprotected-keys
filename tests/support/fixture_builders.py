@@ -400,13 +400,15 @@ def write_scan_configuration(
     base_folders: tuple[str, ...] | None = None,
     directory_names: tuple[str, ...] | None = None,
     ignore_directories: tuple[str, ...] | None = None,
+    ignore_filename_patterns: tuple[str, ...] | None = None,
     filename_patterns: tuple[str, ...] = DEFAULT_FILENAME_PATTERNS,
 ) -> Path:
     """Write the scanner TOML configuration in the workspace root.
 
     Accepts either base_folders (preferred, modern) or folder_patterns (legacy alias)
     for the search bases list. Writes using the modern 'base_folders' key.
-    Also supports writing directory_names and ignore_directories when provided.
+    Pass ``ignore_directories`` / ``ignore_filename_patterns`` as ``None`` to omit the
+    key (packaged defaults apply on load), or as ``()`` to write an empty array.
     """
 
     if base_folders is None:
@@ -426,9 +428,12 @@ def write_scan_configuration(
     if directory_names:
         dn_entries = "\n".join(f'  "{p}",' for p in directory_names)
         extra_sections += f"\ndirectory_names = [\n{dn_entries}\n]\n"
-    if ignore_directories:
+    if ignore_directories is not None:
         ign_entries = "\n".join(f'  "{p}",' for p in ignore_directories)
         extra_sections += f"\nignore_directories = [\n{ign_entries}\n]\n"
+    if ignore_filename_patterns is not None:
+        file_ign_entries = "\n".join(f'  "{p}",' for p in ignore_filename_patterns)
+        extra_sections += f"\nignore_filename_patterns = [\n{file_ign_entries}\n]\n"
 
     config_path.write_text(
         dedent(
@@ -447,6 +452,27 @@ def write_scan_configuration(
         encoding="utf-8",
     )
     return config_path
+
+
+def write_ignore_patterns_configuration(
+    root: Path,
+    *,
+    base_folders: tuple[str, ...] = (".",),
+    filename_patterns: tuple[str, ...] = ("id_*", "*.pem", "*.key"),
+    ignore_directories: tuple[str, ...] | None = None,
+    ignore_filename_patterns: tuple[str, ...] | None = None,
+    directory_names: tuple[str, ...] | None = None,
+) -> Path:
+    """Write a minimal config focused on ignore-pattern semantics."""
+
+    return write_scan_configuration(
+        root,
+        base_folders=base_folders,
+        directory_names=directory_names,
+        ignore_directories=ignore_directories,
+        ignore_filename_patterns=ignore_filename_patterns,
+        filename_patterns=filename_patterns,
+    )
 
 
 def write_expanded_scan_configuration(

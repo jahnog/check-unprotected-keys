@@ -3,38 +3,27 @@
 # base_folders: the ancestor trees you authorize the scanner to explore.
 #   Use broad entries like ".", specific project roots, or "~/.config".
 #   The scanner will walk these (pruned) and apply filename_patterns anywhere underneath.
-#   Include user-specific important locations such as cloud sync folders and secret stores.
 #
 # directory_names: common names of directories that typically hold private key material.
 #   These are automatically discovered (promoted) at any depth under your base_folders.
-#   No **/ globs required. This gives broad coverage with low maintenance.
 #
-# ignore_directories: directories that are never descended into (pruning).
-#   Defaults cover common VCS, build, cache, and dependency dirs.
-#   Add your own to extend the defaults. Use an empty list to disable all ignores.
+# ignore_directories: basenames of directories never descended into (exact match).
+#   Omit this key to use the packaged default list below.
+#   Set to [] to disable all directory pruning.
+#   When present with entries, ONLY those names apply (replace semantics).
+#   To extend defaults, copy this list into your config and add entries.
 #
-# filename_patterns + the key parser (PEM/OpenSSH/PuTTY blocks, embedded secrets)
-# provide the actual recall inside the authorized trees. Files that do not contain
-# private key material are reported with a clear "no detected private keys" message
-# on stderr (keeps stdout clean).
+# ignore_filename_patterns: basename globs skipped before key assessment (ignore wins
+#   over filename_patterns). Omit for packaged defaults; [] disables; non-empty
+#   replaces defaults (same rules as ignore_directories).
 #
-# Excluded by default: public-only (*.pub, authorized_keys, known_hosts),
-# certificate-only (*.crt, *.csr), unsupported keystores (*.p12, *.jks),
-# generic structured configs, generic token hunting.
+# filename_patterns select candidate files inside authorized trees.
 #
 # Findings: canonical paths on stdout only.
-# Summaries for files without detected private keys + files that could not be read
-# + usage-aware remediation on stderr.
+# Summaries + remediation on stderr.
 [scan]
 base_folders = [
   ".",
-  # Important user locations (expand ~ as needed)
-  # "~/Insync",
-  # "~/.gnupg",
-  # "~/.config/JetBrains",
-  # "~/.config/Cursor",
-  # "~/.config/Code",
-  # "~/.ssh",
 ]
 
 directory_names = [
@@ -45,7 +34,6 @@ directory_names = [
   "ansible", "terraform",
   "docker", "helm", "k8s", "kubernetes",
   "vpn", "openvpn", "wireguard",
-  # Common cloud sync and config locations for personal keys
   "Docs", "OneDrive", "Insync",
   "gnupg", "private-keys-v1.d",
   "JetBrains", "PyCharm", "Cursor", "Code",
@@ -53,15 +41,41 @@ directory_names = [
 ]
 
 ignore_directories = [
-  # Extend the built-in safe defaults. Common ones already included:
-  # .git, node_modules, .venv, target, dist, __pycache__, .idea, etc.
+  # Version control
+  ".git", ".svn", ".hg",
+  # Dependencies and package install trees
+  "node_modules", "bower_components", "vendor",
+  ".npm", ".yarn", ".pnpm-store",
+  # Python / virtual environments
+  ".venv", "venv", "env",
+  # Build output
+  "target", "dist", "build", "out",
+  # Caches
+  "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+  ".coverage", "coverage", ".cache", ".turbo", ".gradle",
+  # IDE / editor metadata
+  ".idea", ".vscode", ".vs",
+  # Temporary directories
+  "tmp", "temp", ".tmp",
+  # Note: ".env" here is a directory name, not .env files
+  ".env",
+]
+
+ignore_filename_patterns = [
+  # Public-only artifacts
+  "*.pub", "authorized_keys", "known_hosts",
+  # Certificate-only outputs
+  "*.crt", "*.cer", "*.csr",
+  # Unsupported keystore families
+  "*.p12", "*.pfx", "*.jks", "*.keystore", "*.der", "*.pk8",
+  # Cache artifacts
+  "*.cache", "*.pyc",
+  # Package-manager artifacts
+  "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+  "*.whl", "*.egg", "Cargo.lock", "go.sum",
 ]
 
 # max_directory_visits = 100000
-# Maximum number of distinct directories the scanner may visit in a single run.
-# Symbolic links are now followed; this cap prevents unbounded traversal on large
-# or adversarially crafted trees. When reached the scan aborts with exit code 2.
-# Raise this value for large enterprise mounts; lower it as a safety valve.
 
 filename_patterns = [
   "id_*",

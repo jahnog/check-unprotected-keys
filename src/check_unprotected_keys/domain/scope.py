@@ -63,6 +63,7 @@ def build_effective_scope(
     filename_patterns: Iterable[str],
     *,
     ignore_directories: Iterable[str] | None = None,
+    ignore_filename_patterns: Iterable[str] | None = None,
     root_provenance: dict[Path, str] | None = None,
 ) -> EffectiveScope:
     """Create an immutable effective scope from resolved directories and patterns."""
@@ -77,6 +78,7 @@ def build_effective_scope(
         seen_paths.add(canonical_path)
 
     ignores = frozenset(ignore_directories or ())
+    filename_ignores = frozenset(ignore_filename_patterns or ())
     provenance = dict(root_provenance or {})
 
     return EffectiveScope(
@@ -84,5 +86,6 @@ def build_effective_scope(
         filename_patterns=tuple(filename_patterns),
         canonical_root_set=frozenset(canonical_roots),
         ignore_directories=ignores,
+        ignore_filename_patterns=filename_ignores,
         root_provenance=provenance,
     )

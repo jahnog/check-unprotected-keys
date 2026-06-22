@@ -41,7 +41,7 @@ def test_default_scope_scan_reports_findings_and_non_finding_counts(
     finally:
         workspace.restore_permissions()
 
-    assert result.files_scanned == 6
+    assert result.files_scanned == 5
     assert {finding.file_path for finding in result.findings} == {
         str(workspace.unprotected_pem),
         str(workspace.unprotected_openssh),

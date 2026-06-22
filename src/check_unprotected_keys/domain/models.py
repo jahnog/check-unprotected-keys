@@ -53,8 +53,10 @@ class SearchConfiguration:
     base_folders: tuple[str, ...]
     directory_names: tuple[str, ...]
     ignore_directories: tuple[str, ...]
+    ignore_filename_patterns: tuple[str, ...]
     filename_patterns: tuple[str, ...]
     max_directory_visits: int = 100_000
+    load_warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +83,7 @@ class EffectiveScope:
     filename_patterns: tuple[str, ...]
     canonical_root_set: frozenset[Path]
     ignore_directories: frozenset[str] = frozenset()
+    ignore_filename_patterns: frozenset[str] = frozenset()
     root_provenance: dict[Path, str] = field(default_factory=dict)
 
 

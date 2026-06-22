@@ -116,13 +116,20 @@ Default coverage categories:
 - deployment and infrastructure roots such as `deploy`, `infra`, `ansible`, `terraform`, `docker`, `helm`, `k8s`, and `vpn`
 - high-signal text containers such as `.env*`, `*.ovpn`, and `*.tfvars` when they embed supported key blocks
 
-Default non-goals and exclusions:
+Default non-goals and exclusions (configured via `ignore_filename_patterns` in
+`.check-unprotected-keys.toml`; run `--print-example-config` for the full packaged lists):
 
 - public-only artifacts such as `*.pub`, `authorized_keys`, and `known_hosts`
 - certificate-only outputs such as `*.crt`, `*.cer`, and `*.csr`
 - unsupported keystore families such as `*.p12`, `*.pfx`, and `*.jks`
-- generic structured config files such as `*.json`, `*.yaml`, or `*.toml`
-- generic token or secret-hunting globs such as `*token*`, `*secret*`, or broad `*key*`
+- cache and package-manager artifact files such as `package-lock.json`, `*.whl`, or `*.cache`
+- directory pruning via `ignore_directories` (VCS, `node_modules`, `vendor`, `.npm`, caches, etc.)
+
+Omit an ignore key to use packaged defaults. Set `ignore_directories = []` or
+`ignore_filename_patterns = []` to disable that ignore type. When a key is present with
+entries, only those entries apply (replace semantics). Legacy configs with partial
+`ignore_directories` extension lists receive a load-time stderr warning — copy packaged
+defaults and merge your custom entries.
 
 ## Usage
 

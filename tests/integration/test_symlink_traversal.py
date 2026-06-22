@@ -30,6 +30,7 @@ def _make_config(
         base_folders=base_folders,
         directory_names=(),
         ignore_directories=("node_modules", ".git"),
+        ignore_filename_patterns=(),
         filename_patterns=("id_*", "*.pem", "*.key"),
         max_directory_visits=max_directory_visits,
     )

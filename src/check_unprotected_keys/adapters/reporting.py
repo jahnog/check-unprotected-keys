@@ -102,3 +102,10 @@ def emit_error(message: str, *, stderr: TextIO | None = None) -> None:
 
     stderr_stream = sys.stderr if stderr is None else stderr
     print(dedent(message).strip(), file=stderr_stream)
+
+
+def emit_warning(message: str, *, stderr: TextIO | None = None) -> None:
+    """Emit a non-fatal configuration warning to stderr."""
+
+    stderr_stream = sys.stderr if stderr is None else stderr
+    print(message.strip(), file=stderr_stream)

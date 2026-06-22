@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import glob
 import tomllib
 from importlib.resources import files
@@ -11,37 +12,9 @@ from typing import Any
 from check_unprotected_keys.config.models import ScanConfigSection
 from check_unprotected_keys.domain.models import SearchConfiguration
 
-# Safe default directories to never descend into when using broad bases.
-# Users can extend via ignore_directories in their config (additive).
-DEFAULT_IGNORE_DIRECTORIES: tuple[str, ...] = (
-    ".git",
-    ".svn",
-    ".hg",
-    "node_modules",
-    "bower_components",
-    ".venv",
-    "venv",
-    ".env",
-    "env",
-    "target",
-    "dist",
-    "build",
-    "out",
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".coverage",
-    "coverage",
-    ".idea",
-    ".vscode",
-    ".vs",
-    "tmp",
-    "temp",
-    ".tmp",
-)
-
 DEFAULT_CONFIG_FILENAME = ".check-unprotected-keys.toml"
+
+_PARTIAL_LEGACY_SENTINELS = frozenset({".git", "node_modules"})
 
 
 class ConfigurationError(ValueError):
@@ -55,6 +28,32 @@ def read_example_configuration_text() -> str:
         "check-unprotected-keys.example.toml"
     )
     return resource.read_text(encoding="utf-8")
+
+
+@functools.lru_cache(maxsize=1)
+def _load_packaged_defaults() -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return packaged ignore_directories and ignore_filename_patterns."""
+
+    resource = files("check_unprotected_keys.resources").joinpath(
+        "check-unprotected-keys.example.toml"
+    )
+    document = tomllib.loads(resource.read_text(encoding="utf-8"))
+    scan_table = document.get("scan")
+    if not isinstance(scan_table, dict):
+        raise ConfigurationError(
+            "Packaged example configuration is missing a [scan] table."
+        )
+
+    dir_defaults = _validate_optional_patterns(scan_table, key="ignore_directories")
+    file_defaults = _validate_optional_patterns(
+        scan_table, key="ignore_filename_patterns"
+    )
+    if not dir_defaults or not file_defaults:
+        raise ConfigurationError(
+            "Packaged example configuration must define non-empty "
+            "ignore_directories and ignore_filename_patterns defaults."
+        )
+    return dir_defaults, file_defaults
 
 
 def load_search_configuration(
@@ -88,6 +87,8 @@ def load_search_configuration(
             "(or legacy folder_patterns) and filename_patterns."
         )
 
+    packaged_dir_ignores, packaged_file_ignores = _load_packaged_defaults()
+
     # Determine base folders: prefer modern key, fall back to legacy for compat.
     if "base_folders" in scan_table:
         base_folders = _validate_patterns(scan_table, key="base_folders")
@@ -106,23 +107,31 @@ def load_search_configuration(
     if "directory_names" in scan_table:
         directory_names = _validate_optional_patterns(scan_table, key="directory_names")
     elif legacy_used:
-        # Auto-promote simple bare directory names from old-style folder_patterns
-        # so users get broader discovery "for free" during transition.
         directory_names = tuple(
             p for p in base_folders if "/" not in p and not glob.has_magic(p)
         )
     else:
         directory_names = ()
 
-    # ignore_directories: start with safe defaults, extend with user list
-    # (user may provide empty list to drop all defaults).
-    if "ignore_directories" in scan_table:
-        user_ignores = _validate_optional_patterns(scan_table, key="ignore_directories")
-        ignore_directories = tuple(
-            dict.fromkeys(DEFAULT_IGNORE_DIRECTORIES + user_ignores)
-        )
-    else:
-        ignore_directories = DEFAULT_IGNORE_DIRECTORIES
+    ignore_directories, ignore_dirs_present = _resolve_ignore_list(
+        scan_table,
+        key="ignore_directories",
+        packaged_defaults=packaged_dir_ignores,
+    )
+    ignore_filename_patterns, _ = _resolve_ignore_list(
+        scan_table,
+        key="ignore_filename_patterns",
+        packaged_defaults=packaged_file_ignores,
+    )
+
+    load_warnings: list[str] = []
+    partial_warning = _maybe_partial_legacy_ignore_warning(
+        key_was_present=ignore_dirs_present,
+        resolved=ignore_directories,
+        packaged=packaged_dir_ignores,
+    )
+    if partial_warning is not None:
+        load_warnings.append(partial_warning)
 
     filename_patterns = _validate_patterns(scan_table, key="filename_patterns")
 
@@ -141,8 +150,10 @@ def load_search_configuration(
         base_folders=base_folders,
         directory_names=directory_names,
         ignore_directories=ignore_directories,
+        ignore_filename_patterns=ignore_filename_patterns,
         filename_patterns=filename_patterns,
         max_directory_visits=max_directory_visits,
+        load_warnings=tuple(load_warnings),
     )
 
     return SearchConfiguration(
@@ -151,8 +162,52 @@ def load_search_configuration(
         base_folders=section.base_folders,
         directory_names=section.directory_names,
         ignore_directories=section.ignore_directories,
+        ignore_filename_patterns=section.ignore_filename_patterns,
         filename_patterns=section.filename_patterns,
         max_directory_visits=section.max_directory_visits,
+        load_warnings=section.load_warnings,
+    )
+
+
+def _resolve_ignore_list(
+    scan_table: dict[str, Any],
+    *,
+    key: str,
+    packaged_defaults: tuple[str, ...],
+) -> tuple[tuple[str, ...], bool]:
+    """Resolve omit / empty / replace semantics for an ignore list key.
+
+    Returns (effective_list, key_was_present_in_user_toml).
+    """
+
+    if key not in scan_table:
+        return packaged_defaults, False
+
+    user_patterns = _validate_optional_patterns(scan_table, key=key)
+    if not user_patterns:
+        return (), True
+    return tuple(dict.fromkeys(user_patterns)), True
+
+
+def _maybe_partial_legacy_ignore_warning(
+    *,
+    key_was_present: bool,
+    resolved: tuple[str, ...],
+    packaged: tuple[str, ...],
+) -> str | None:
+    """Detect likely legacy partial extension lists under replace semantics."""
+
+    if not key_was_present or not resolved:
+        return None
+    if len(resolved) >= len(packaged) / 2:
+        return None
+    if _PARTIAL_LEGACY_SENTINELS.issubset(set(resolved)):
+        return None
+    return (
+        "warning: scan.ignore_directories looks like a partial extension list from "
+        "an older release. Under replace semantics only the configured names are "
+        "pruned. Copy the packaged defaults from --print-example-config and merge "
+        "your custom entries."
     )
 
 

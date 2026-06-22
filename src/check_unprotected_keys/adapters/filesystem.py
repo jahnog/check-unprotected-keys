@@ -154,6 +154,7 @@ def resolve_effective_scope(
         all_roots,
         configuration.filename_patterns,
         ignore_directories=configuration.ignore_directories,
+        ignore_filename_patterns=configuration.ignore_filename_patterns,
         root_provenance=provenance,
     )
 
@@ -207,6 +208,12 @@ def discover_candidate_files(
             _prune_with_visit_check(dirnames, current_path, ignore_set, tracker, issues)
 
             for file_name in file_names:
+                if scope.ignore_filename_patterns and _match_filename_pattern(
+                    file_name,
+                    tuple(scope.ignore_filename_patterns),
+                ):
+                    continue
+
                 matched_filename_pattern = _match_filename_pattern(
                     file_name,
                     scope.filename_patterns,
