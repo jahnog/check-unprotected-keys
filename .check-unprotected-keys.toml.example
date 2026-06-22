@@ -6,38 +6,46 @@
 # Matching findings stay on stdout as canonical paths. Operator-safe malformed
 # file logs and low-friction protection guidance are emitted on stderr.
 [scan]
-folder_patterns = [
-  "~/Documents",
-  "~/.ssh",
-  "**/ssh",
-  ".ssh",
-  "keys",
-  "private",
-  "certs",
-  "certificates",
-  "tls",
-  "ssl",
-  "pki",
-  "secrets",
-  "config/keys",
-  "config/certs",
-  "config/tls",
-  "config/secrets",
-  ".config/keys",
-  ".config/certs",
-  ".config/tls",
-  ".config/secrets",
-  "deploy",
-  "deployment",
-  "infra",
-  "ansible",
-  "terraform",
-  "docker",
-  "helm",
-  "k8s",
-  "kubernetes",
-  "vpn",
-  "openvpn"
+base_folders = [
+  "~",
+]
+
+directory_names = [
+  ".ssh", "ssh",
+  "secrets", "keys", "private",
+  "certs", "certificates", "tls", "ssl", "pki",
+  "deploy", "deployment", "infra",
+  "ansible", "terraform",
+  "docker", "helm", "k8s", "kubernetes",
+  "vpn", "openvpn", "wireguard",
+  "Docs", "OneDrive", "Insync",
+  "gnupg", "private-keys-v1.d",
+  "JetBrains", "PyCharm", "Cursor", "Code",
+  "History",
+]
+
+ignore_directories = [
+  "tests",
+  # Version control
+  ".git", ".svn", ".hg",
+  # Dependencies and package install trees
+  "node_modules", "bower_components", "vendor",
+  ".npm", ".yarn", ".pnpm-store",
+  # Python / virtual environments
+  ".venv", "venv", "env",
+  # Build output
+  "target", "dist", "build", "out",
+  # Caches
+  "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+  ".coverage", "coverage", ".cache", ".turbo", ".gradle",
+  # IDE / editor metadata
+  ".idea", ".vscode", ".vs",
+  # Temporary directories
+  "tmp", "temp", ".tmp",
+  # Note: ".env" here is a directory name, not .env files
+  ".env",
+  "android-ndk",
+  ".stryker-tmp"
 ]
 
 filename_patterns = [
@@ -47,6 +55,7 @@ filename_patterns = [
   "*.ppk",
   "*.pem",
   "*.key",
+  "*.asc",
   ".env",
   ".env.*",
   "*.env",
@@ -54,3 +63,20 @@ filename_patterns = [
   "*.ovpn",
   "*.tfvars"
 ]
+
+ignore_filename_patterns = [
+  ".env.sample", ".env.example", ".env.encrypted",
+  # Public-only artifacts
+  "*.pub", "authorized_keys", "known_hosts",
+  # Certificate-only outputs
+  "*.crt", "*.cer", "*.csr",
+  # Unsupported keystore families
+  "*.p12", "*.pfx", "*.jks", "*.keystore", "*.der", "*.pk8",
+  # Cache artifacts
+  "*.cache", "*.pyc",
+  # Package-manager artifacts
+  "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+  "*.whl", "*.egg", "Cargo.lock", "go.sum",
+]
+
+max_directory_visits = 100000
