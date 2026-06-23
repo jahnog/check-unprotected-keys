@@ -121,6 +121,116 @@ def test_externalized_values_are_not_reported_only_real_secret_is(
     assert result.exit_code == 1
 
 
+def test_benign_secret_named_properties_produce_no_findings(tmp_path: Path) -> None:
+    # US1 / quickstart Scenario A: every entry is a benign secret-named value.
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "application.properties").write_text(
+        "signing.key.alias=primary\n"
+        "jwt.algorithm=RS256\n"
+        "cache.key.prefix=user:\n"
+        "oauth.token.uri=https://auth.example.com/token\n"
+        "password.min.length=8\n"
+        "keystore.type=PKCS12\n"
+        "key.serializer=org.apache.kafka.common.serialization.StringSerializer\n"
+        "db.password=changeme\n"
+        "db.host=localhost\n"
+        "compass.center=12.5\n",
+        encoding="utf-8",
+    )
+    write_scan_configuration(
+        tmp_path, base_folders=("project",), filename_patterns=("*.properties",)
+    )
+
+    result, stdout, _stderr = _run(tmp_path)
+
+    assert nonempty_output_lines(stdout) == ()
+    assert result.exit_code == 0
+
+
+def test_secrets_under_benign_key_names_are_reported(tmp_path: Path) -> None:
+    # US2 / quickstart Scenario B: signature + literal + inline key material.
+    project = tmp_path / "project"
+    project.mkdir()
+    pem = project / "inline.pem"
+    write_pem_private_key(pem, encrypted=False)
+    inline = pem.read_text(encoding="utf-8").replace("\n", "\\n")
+    pem.unlink()  # keep only the inline copy inside the .properties value
+    embedded_secret = "S3cr3tDbPass"
+    (project / "app.properties").write_text(
+        f"datasource.url=jdbc:mysql://root:{embedded_secret}@db:3306/app\n"
+        "mail.password=R3alSecret99\n"
+        f"note={inline}\n",
+        encoding="utf-8",
+    )
+    write_scan_configuration(
+        tmp_path, base_folders=("project",), filename_patterns=("*.properties",)
+    )
+
+    result, stdout, stderr = _run(tmp_path)
+
+    props_path = (project / "app.properties").resolve()
+    assert set(nonempty_output_lines(stdout)) == {
+        f"{props_path}#datasource.url",
+        f"{props_path}#mail.password",
+        f"{props_path}#note",
+    }
+    assert embedded_secret not in stdout
+    assert embedded_secret not in stderr
+    assert "PRIVATE KEY" not in stdout
+    assert result.exit_code == 1
+
+
+def test_externalized_encrypted_and_certificate_values_are_silent(
+    tmp_path: Path,
+) -> None:
+    # US4 / quickstart Scenario C.
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "secure.properties").write_text(
+        "db.password=${DB_PASSWORD}\n"
+        "api.secret=ENC(QkVHRU5jcnlwdA==)\n"
+        "jasypt.token={cipher}AAABBBCCCDDD\n"
+        "vault.key=vault:secret/data/app#key\n"
+        "tpl.password={{ db_password }}\n"
+        "tls.cert=-----BEGIN CERTIFICATE-----\\nMIIBex\\n-----END CERTIFICATE-----\n",
+        encoding="utf-8",
+    )
+    write_scan_configuration(
+        tmp_path, base_folders=("project",), filename_patterns=("*.properties",)
+    )
+
+    result, stdout, _stderr = _run(tmp_path)
+
+    assert nonempty_output_lines(stdout) == ()
+    assert result.exit_code == 0
+
+
+def test_message_bundle_prose_is_silent_but_real_config_is_reported(
+    tmp_path: Path,
+) -> None:
+    # i18n bundle holds text about secrets; sibling real config holds one.
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "messages_es.properties").write_text(
+        "error.password.invalid=La contrasena no es valida\n"
+        "user.secret.question=Cual es tu pregunta secreta\n",
+        encoding="utf-8",
+    )
+    (project / "application.properties").write_text(
+        "db.password=R3alSecret99\n", encoding="utf-8"
+    )
+    write_scan_configuration(
+        tmp_path, base_folders=("project",), filename_patterns=("*.properties",)
+    )
+
+    result, stdout, _stderr = _run(tmp_path)
+
+    config_path = (project / "application.properties").resolve()
+    assert set(nonempty_output_lines(stdout)) == {f"{config_path}#db.password"}
+    assert result.exit_code == 1
+
+
 def test_secret_value_never_appears_in_any_output_stream(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()

@@ -20,12 +20,23 @@
 # filename_patterns select candidate files inside authorized trees.
 #   Includes *.properties so Java-style property files are inspected for secrets.
 #
-# property_name_patterns: case-insensitive substrings of property keys (in
-#   *.properties files) that mark a property as secret-bearing (for example
-#   password, secret, private). Matching keys are checked for plaintext
-#   credentials, inline key material, and unprotected key-file references.
-#   Omit for packaged defaults; [] disables property-name matching; non-empty
-#   replaces defaults (same omit/empty/replace rules as the ignore_* keys).
+# property_name_patterns: secret-indicating words for property keys (in
+#   *.properties files). Matched token-aware (the key is split on . _ - / and
+#   camelCase, so "compass"/"tokenizer" no longer match "pass"/"token"). A key is
+#   graded STRONG (clear credential name) or WEAK (broad token like key/token, or
+#   a name qualified by a non-secret word such as *.alias/*.algorithm/*.enabled):
+#   STRONG keys flag even word-like passwords, WEAK keys require high-entropy or a
+#   known secret signature. Independently of the key name, values matching a known
+#   credential signature (cloud tokens, JWTs, private keys, connection strings with
+#   embedded credentials) are always reported. Externalized references
+#   (${...}, {{...}}, vault:/env: schemes), encrypted wrappers (ENC(...),
+#   {cipher}...), and sample/placeholder values (changeme, <password>, ...) are
+#   never reported. Omit for packaged defaults; [] disables property-name matching;
+#   non-empty replaces defaults (same omit/empty/replace rules as the ignore_* keys).
+#
+# property_value_ignore (optional): extra exact property values (case-insensitive)
+#   to treat as benign and never report — for organization-specific placeholders.
+#   Omit for none; [] for none; non-empty replaces (same rules as ignore_* keys).
 #
 # Findings: canonical paths on stdout only. A property-level finding is rendered
 #   as <path>#<property key>; secret values are never printed.
@@ -111,3 +122,9 @@ property_name_patterns = [
   "secret", "private", "passphrase",
   "key", "token", "credential", "apikey",
 ]
+
+# Optional: extra exact values to always treat as benign (organization-specific
+# placeholders). Omit to keep the empty default.
+# property_value_ignore = [
+#   "internal-default",
+# ]

@@ -1,5 +1,15 @@
 # Contract: `.properties` Secret Inspection
 
+> **Re-sync note (2026-06-23)**: §1 (name catalog / matching), §3.2–§3.5
+> (name gate, non-secret kinds, credential gate), and the value-assessment order
+> were superseded by feature
+> [009 — Precise `.properties` Secret Detection](../../009-properties-detection-accuracy/contracts/properties-detection.md),
+> which is authoritative for current behavior (token-aware tiered name matching,
+> an unconditional value-signature layer, expanded externalized/encrypted-form
+> recognition, sample/shape exclusions, and the optional `property_value_ignore`
+> key). §2 (parsing), §4 (output), §5 (accounting), and §6 (failure handling)
+> below remain accurate.
+
 Defines the observable behavior of `.properties` content inspection: the
 configuration surface, the per-entry decision order, the output format, and the
 scan-accounting rules. This is the contract acceptance tests assert against.

@@ -4,7 +4,25 @@
 
 **Created**: 2026-06-22
 
-**Status**: Draft
+**Status**: Implemented — `.properties` detection logic subsequently refined by feature 009
+
+> **Re-sync note (2026-06-23)**: The per-entry *detection logic* in this spec
+> (secret-name matching in FR-003, the credential-likeness gate in FR-004, and the
+> externalized/encrypted exclusions in FR-005) was refined for accuracy by feature
+> [009 — Precise `.properties` Secret Detection](../009-properties-detection-accuracy/spec.md),
+> which is the authoritative description of current behavior. In summary, 009:
+> replaces case-insensitive **substring** name matching with **token-aware**
+> matching graded into **STRONG / WEAK confidence tiers** (with qualifier
+> demotion, so keys like `compass`/`tokenizer` and `signing.key.alias` no longer
+> behave as in 008); adds an unconditional **value-signature** layer
+> (cloud/service tokens, JWTs, private keys, and connection strings with embedded
+> credentials) that reports regardless of the key name; replaces FR-004's single
+> flat length+entropy gate with a tier-aware gate; expands the recognized
+> externalized/encrypted forms (`{{…}}`, `{cipher}…`, `vault:`/`env:` schemes) and
+> never-report sample/placeholder values (`changeme`, `<password>`, …); and adds
+> the optional `property_value_ignore` configuration key. Discovery, parsing, the
+> `<path>#<property key>` output, `files_scanned` accounting, scope, and ignore
+> rules described below are unchanged by 009.
 
 **Input**: User description: "add the java .properties files to the files to be checked, and check if the have a property called password, pass, private, etc, that can store a password or a key file without encryption."
 
@@ -191,8 +209,9 @@ appears in any stream while the file path and offending property name do.
 - **FR-003**: System MUST identify property entries whose key matches the
   configured set of secret-indicating name patterns (default set includes, at
   minimum, names equivalent to `password`, `pass`, `passwd`, `pwd`, `secret`,
-  `private`, `key`, `token`, `credential`, and `apikey`), using
-  case-insensitive matching.
+  `private`, `passphrase`, `key`, `token`, `credential`, and `apikey`), using
+  case-insensitive matching. (Refined to token-aware, tiered matching by 009 —
+  see the Re-sync note above.)
 - **FR-004**: For each secret-named property entry, System MUST report it as an
   unprotected finding only when the value passes the credential-likeness
   heuristic, which requires BOTH a minimum length AND a minimum

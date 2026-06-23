@@ -290,3 +290,30 @@ def test_empty_property_name_patterns_disable_matching(tmp_path: Path) -> None:
     configuration = load_search_configuration(tmp_path)
 
     assert configuration.property_name_patterns == ()
+
+
+def test_property_value_ignore_defaults_to_empty_when_omitted(tmp_path: Path) -> None:
+    config_path = tmp_path / ".check-unprotected-keys.toml"
+    config_path.write_text(
+        '[scan]\nbase_folders = ["."]\nfilename_patterns = ["*.properties"]\n',
+        encoding="utf-8",
+    )
+
+    configuration = load_search_configuration(tmp_path)
+
+    assert configuration.property_value_ignore == ()
+
+
+def test_property_value_ignore_replaces_with_configured_tokens(tmp_path: Path) -> None:
+    config_path = tmp_path / ".check-unprotected-keys.toml"
+    config_path.write_text(
+        "[scan]\n"
+        'base_folders = ["."]\n'
+        'filename_patterns = ["*.properties"]\n'
+        'property_value_ignore = ["internal-default", "do-not-flag"]\n',
+        encoding="utf-8",
+    )
+
+    configuration = load_search_configuration(tmp_path)
+
+    assert configuration.property_value_ignore == ("internal-default", "do-not-flag")

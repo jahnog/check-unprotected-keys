@@ -36,6 +36,7 @@ PEM_PUBLIC_KEY_HEADERS = (
     b"-----BEGIN RSA PUBLIC KEY-----",
     b"-----BEGIN EC PUBLIC KEY-----",
 )
+CERTIFICATE_HEADER = b"-----BEGIN CERTIFICATE-----"
 OPENSSH_PUBLIC_KEY_PREFIXES = (b"ssh-", b"ecdsa-", b"sk-")
 
 
@@ -108,6 +109,13 @@ def _inspect_key_blob(payload: bytes) -> ProtectionAssessment | None:
 
     if stripped.startswith(OPENSSH_PUBLIC_KEY_PREFIXES):
         return _inspect_openssh_public_key(stripped)
+
+    if stripped.startswith(CERTIFICATE_HEADER):
+        return build_assessment(
+            ProtectionClassification.PUBLIC_ONLY,
+            format_hint="pem",
+            message="File contains only certificate (public) material.",
+        )
 
     return None
 

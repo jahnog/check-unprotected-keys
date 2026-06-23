@@ -269,6 +269,7 @@ class ScanService:
             candidate.canonical_path,
             name_patterns=request.configuration.property_name_patterns,
             scope=scope,
+            value_ignore=request.configuration.property_value_ignore,
         )
 
         if inspection.unreadable:
