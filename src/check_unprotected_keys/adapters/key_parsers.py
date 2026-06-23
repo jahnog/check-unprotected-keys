@@ -61,6 +61,21 @@ def inspect_candidate_file(candidate_path: Path) -> ProtectionAssessment:
     return select_file_assessment(assessments)
 
 
+def inspect_text_for_key_material(text: str) -> ProtectionAssessment | None:
+    """Return the strongest key-material assessment embedded in ``text``.
+
+    Used to assess inline key material carried in a ``.properties`` value
+    (FR-006). Returns ``None`` when the text contains no recognizable key
+    material, so the caller can fall through to other value heuristics. Reuses
+    the same blob-collection and selection logic as file inspection (DRY).
+    """
+
+    assessments = _collect_assessments(text.encode("utf-8", errors="replace"))
+    if not assessments:
+        return None
+    return select_file_assessment(assessments)
+
+
 def _collect_assessments(payload: bytes) -> list[ProtectionAssessment]:
     direct_assessment = _inspect_key_blob(payload)
     if direct_assessment is not None:

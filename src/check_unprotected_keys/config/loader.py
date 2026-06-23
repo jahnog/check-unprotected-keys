@@ -31,8 +31,11 @@ def read_example_configuration_text() -> str:
 
 
 @functools.lru_cache(maxsize=1)
-def _load_packaged_defaults() -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Return packaged ignore_directories and ignore_filename_patterns."""
+def _load_packaged_defaults() -> tuple[
+    tuple[str, ...], tuple[str, ...], tuple[str, ...]
+]:
+    """Return packaged ignore_directories, ignore_filename_patterns,
+    and property_name_patterns defaults."""
 
     resource = files("check_unprotected_keys.resources").joinpath(
         "check-unprotected-keys.example.toml"
@@ -48,12 +51,16 @@ def _load_packaged_defaults() -> tuple[tuple[str, ...], tuple[str, ...]]:
     file_defaults = _validate_optional_patterns(
         scan_table, key="ignore_filename_patterns"
     )
-    if not dir_defaults or not file_defaults:
+    property_defaults = _validate_optional_patterns(
+        scan_table, key="property_name_patterns"
+    )
+    if not dir_defaults or not file_defaults or not property_defaults:
         raise ConfigurationError(
             "Packaged example configuration must define non-empty "
-            "ignore_directories and ignore_filename_patterns defaults."
+            "ignore_directories, ignore_filename_patterns, and "
+            "property_name_patterns defaults."
         )
-    return dir_defaults, file_defaults
+    return dir_defaults, file_defaults, property_defaults
 
 
 def load_search_configuration(
@@ -87,7 +94,11 @@ def load_search_configuration(
             "(or legacy folder_patterns) and filename_patterns."
         )
 
-    packaged_dir_ignores, packaged_file_ignores = _load_packaged_defaults()
+    (
+        packaged_dir_ignores,
+        packaged_file_ignores,
+        packaged_property_names,
+    ) = _load_packaged_defaults()
 
     # Determine base folders: prefer modern key, fall back to legacy for compat.
     if "base_folders" in scan_table:
@@ -123,6 +134,11 @@ def load_search_configuration(
         key="ignore_filename_patterns",
         packaged_defaults=packaged_file_ignores,
     )
+    property_name_patterns, _ = _resolve_ignore_list(
+        scan_table,
+        key="property_name_patterns",
+        packaged_defaults=packaged_property_names,
+    )
 
     load_warnings: list[str] = []
     partial_warning = _maybe_partial_legacy_ignore_warning(
@@ -152,6 +168,7 @@ def load_search_configuration(
         ignore_directories=ignore_directories,
         ignore_filename_patterns=ignore_filename_patterns,
         filename_patterns=filename_patterns,
+        property_name_patterns=property_name_patterns,
         max_directory_visits=max_directory_visits,
         load_warnings=tuple(load_warnings),
     )
@@ -164,6 +181,7 @@ def load_search_configuration(
         ignore_directories=section.ignore_directories,
         ignore_filename_patterns=section.ignore_filename_patterns,
         filename_patterns=section.filename_patterns,
+        property_name_patterns=section.property_name_patterns,
         max_directory_visits=section.max_directory_visits,
         load_warnings=section.load_warnings,
     )

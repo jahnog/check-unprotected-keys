@@ -144,11 +144,12 @@ def test_omitted_ignore_keys_load_packaged_defaults(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    packaged_dirs, packaged_files = _load_packaged_defaults()
+    packaged_dirs, packaged_files, packaged_property_names = _load_packaged_defaults()
     configuration = load_search_configuration(tmp_path)
 
     assert configuration.ignore_directories == packaged_dirs
     assert configuration.ignore_filename_patterns == packaged_files
+    assert configuration.property_name_patterns == packaged_property_names
     assert ".git" in configuration.ignore_directories
     assert "*.pub" in configuration.ignore_filename_patterns
     assert "vendor" in configuration.ignore_directories
@@ -231,7 +232,7 @@ def test_partial_legacy_ignore_directories_emits_load_warning(
 
 
 def test_full_copied_ignore_directories_does_not_warn(tmp_path: Path) -> None:
-    packaged_dirs, _ = _load_packaged_defaults()
+    packaged_dirs, _, _ = _load_packaged_defaults()
     entries = "\n".join(f'  "{name}",' for name in packaged_dirs)
     config_path = tmp_path / ".check-unprotected-keys.toml"
     config_path.write_text(
@@ -245,3 +246,47 @@ def test_full_copied_ignore_directories_does_not_warn(tmp_path: Path) -> None:
     configuration = load_search_configuration(tmp_path)
 
     assert configuration.load_warnings == ()
+
+
+def test_omitted_property_name_patterns_load_packaged_defaults(tmp_path: Path) -> None:
+    _dirs, _files, packaged_property_names = _load_packaged_defaults()
+    config_path = tmp_path / ".check-unprotected-keys.toml"
+    config_path.write_text(
+        '[scan]\nbase_folders = ["."]\nfilename_patterns = ["*.properties"]\n',
+        encoding="utf-8",
+    )
+
+    configuration = load_search_configuration(tmp_path)
+
+    assert configuration.property_name_patterns == packaged_property_names
+    assert packaged_property_names  # packaged catalog is non-empty
+
+
+def test_replace_semantics_for_explicit_property_name_patterns(tmp_path: Path) -> None:
+    config_path = tmp_path / ".check-unprotected-keys.toml"
+    config_path.write_text(
+        "[scan]\n"
+        'base_folders = ["."]\n'
+        'filename_patterns = ["*.properties"]\n'
+        'property_name_patterns = ["corp_token"]\n',
+        encoding="utf-8",
+    )
+
+    configuration = load_search_configuration(tmp_path)
+
+    assert configuration.property_name_patterns == ("corp_token",)
+
+
+def test_empty_property_name_patterns_disable_matching(tmp_path: Path) -> None:
+    config_path = tmp_path / ".check-unprotected-keys.toml"
+    config_path.write_text(
+        "[scan]\n"
+        'base_folders = ["."]\n'
+        'filename_patterns = ["*.properties"]\n'
+        "property_name_patterns = []\n",
+        encoding="utf-8",
+    )
+
+    configuration = load_search_configuration(tmp_path)
+
+    assert configuration.property_name_patterns == ()

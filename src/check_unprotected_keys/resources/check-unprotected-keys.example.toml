@@ -18,8 +18,17 @@
 #   replaces defaults (same rules as ignore_directories).
 #
 # filename_patterns select candidate files inside authorized trees.
+#   Includes *.properties so Java-style property files are inspected for secrets.
 #
-# Findings: canonical paths on stdout only.
+# property_name_patterns: case-insensitive substrings of property keys (in
+#   *.properties files) that mark a property as secret-bearing (for example
+#   password, secret, private). Matching keys are checked for plaintext
+#   credentials, inline key material, and unprotected key-file references.
+#   Omit for packaged defaults; [] disables property-name matching; non-empty
+#   replaces defaults (same omit/empty/replace rules as the ignore_* keys).
+#
+# Findings: canonical paths on stdout only. A property-level finding is rendered
+#   as <path>#<property key>; secret values are never printed.
 # Summaries + remediation on stderr.
 [scan]
 base_folders = [
@@ -90,5 +99,15 @@ filename_patterns = [
   "*.env",
   "*.env.*",
   "*.ovpn",
-  "*.tfvars"
+  "*.tfvars",
+  "*.properties",
+]
+
+# Property-key substrings (case-insensitive) treated as secret-bearing inside
+# *.properties files. Omit for these packaged defaults; [] disables; a non-empty
+# list replaces these defaults entirely.
+property_name_patterns = [
+  "password", "passwd", "pwd", "pass",
+  "secret", "private", "passphrase",
+  "key", "token", "credential", "apikey",
 ]

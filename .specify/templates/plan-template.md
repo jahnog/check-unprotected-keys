@@ -1,6 +1,6 @@
 # Implementation Plan: [FEATURE]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Branch**: `feature/<slug>` | **Date**: [DATE] | **Spec**: [link]
 
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
@@ -61,6 +61,10 @@
   will run in local and CI workflows.
 - Standalone executable packaging, artifact smoke tests, and deployment or
   release impacts are documented.
+- Implementation will proceed on a Git Flow `feature/<slug>` branch (slug ≤ 4
+  words, kebab-case) created via `git flow feature start` just before coding
+  begins; all commits and the pull request are made manually by the user, and no
+  git action other than feature-branch creation is automated.
 
 ## Project Structure
 

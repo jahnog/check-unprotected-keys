@@ -104,7 +104,8 @@ filename_patterns = [
   "*.env",
   "*.env.*",
   "*.ovpn",
-  "*.tfvars"
+  "*.tfvars",
+  "*.properties"
 ]
 ```
 
@@ -115,6 +116,7 @@ Default coverage categories:
 - curated config subtrees such as `config/keys`, `config/certs`, and `.config/secrets`
 - deployment and infrastructure roots such as `deploy`, `infra`, `ansible`, `terraform`, `docker`, `helm`, `k8s`, and `vpn`
 - high-signal text containers such as `.env*`, `*.ovpn`, and `*.tfvars` when they embed supported key blocks
+- Java `*.properties` files, inspected for secret-named properties holding plaintext credentials, inline key material, or unprotected key-file references (see below)
 
 Default non-goals and exclusions (configured via `ignore_filename_patterns` in
 `.check-unprotected-keys.toml`; run `--print-example-config` for the full packaged lists):
@@ -130,6 +132,29 @@ Omit an ignore key to use packaged defaults. Set `ignore_directories = []` or
 entries, only those entries apply (replace semantics). Legacy configs with partial
 `ignore_directories` extension lists receive a load-time stderr warning — copy packaged
 defaults and merge your custom entries.
+
+### Java `.properties` secret inspection
+
+`*.properties` files are scanned by default. For each property whose **key** matches a
+secret-indicating name, the scanner inspects the **value** and reports:
+
+- a plaintext credential (a literal that clears a combined length-and-entropy gate),
+- inline key material embedded in the value (assessed regardless of the key name), and
+- a path that references an **unprotected** key file (relative paths resolve against the
+  `.properties` file's own directory; out-of-scope and missing paths are skipped).
+
+Values that are externalized references (`${...}`, `@...@`, `#{...}`), encrypted wrappers
+(`ENC(...)`), empty, or obvious non-secrets (booleans, numbers) are never reported.
+
+The set of secret-indicating property-name patterns is configurable via
+`property_name_patterns` (case-insensitive substrings of the property key), using the same
+omit / empty / replace semantics as the ignore keys: omit for the packaged catalog
+(`password`, `secret`, `private`, `key`, `token`, …), `[]` to disable property-name
+matching, or a non-empty list to replace the defaults.
+
+Each offending property is reported on its own stdout line as `<path>#<property key>`, so
+findings are independently greppable. **Secret values are never printed** to stdout,
+stderr, or logs — only the file path and the property key name appear.
 
 ## Usage
 
