@@ -266,6 +266,38 @@ existing `cryptography` reuse), so the corpus (Decision 9) has a fixed baseline.
 - **Alternatives considered**: Ad-hoc fixtures without metrics (rejected: the
   accuracy claim would be unverifiable and would silently regress).
 
+## Decision 10 — Skip the name-gated gate for i18n message bundles (FR-015)
+
+- **Decision**: Detect message / i18n resource-bundle `.properties` files by
+  filename via `is_message_bundle(name)` (pure, in `domain/properties.py`): true
+  when the base name (after stripping a Java ResourceBundle locale suffix) is in a
+  curated bundle-name set (`messages`, `labels`, `text`, `strings`, `i18n`,
+  `ApplicationResources`, `ValidationMessages`, …), OR when a trailing locale
+  suffix uses a valid ISO 639-1 language code (`_es`, `_en_US`, `_zh_Hant_TW`).
+  For a bundle, the inspector applies only the unconditional layers (inline key
+  material §3.1 and value signature §3.2) and then stops — the name-gated credential
+  gate and key-file reference following are skipped.
+- **Rationale**: Bundle values are natural-language text *about* secrets ("Enter
+  your password", "Contraseña no válida") under keys like `error.password.invalid`;
+  the tier-aware gate flags them as plaintext credentials, a large real-world
+  false-positive class. Keying off the filename is reliable (ResourceBundle locale
+  naming is a strong convention) and cheap (computed once per file).
+- **Recall safety**: Skipping only the name-gated path — while keeping the inline
+  and signature layers — means a genuinely embedded private key or provider token
+  in a bundle is still reported, consistent with the feature's
+  exclusion-backed-by-high-confidence-layers philosophy.
+- **Collision handling**: a few ISO 639-1 codes double as common words
+  (`id`, `is`, `it`, `no`, `as`, `be`, `or`, `to`, `so`, `am`, `my`, `an`). For an
+  *arbitrary* base name these alone do **not** mark a file as a bundle (so
+  `service_id.properties` is still fully scanned — zero-false-negative priority);
+  they only count when paired with a recognized bundle base name
+  (`messages_id.properties`). Locale extras are validated as ISO 3166 country
+  (`US`), ISO 15924 script (`Hant`), or UN M.49 region (`419`).
+- **Alternatives considered**: Detecting "message-like" values by natural-language
+  shape (rejected: indistinguishable from multiword passphrases like
+  `correct horse battery staple` — would hurt recall). Skipping bundle files
+  entirely incl. the signature layer (rejected: drops the recall safety net).
+
 ## Cross-cutting: tests, quality gates, packaging
 
 - **Testing**: new unit suites for tokenization/tiering, value signatures, shape

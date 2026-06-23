@@ -25,6 +25,7 @@ from check_unprotected_keys.domain.properties import (
     classify_key_tier,
     classify_value,
     is_credential_like,
+    is_message_bundle,
     is_non_secret_shape,
     is_sample_placeholder,
     match_value_signature,
@@ -81,10 +82,11 @@ def inspect_properties_file(
     text = _decode(raw)
     findings: list[PropertyFinding] = []
     references: list[tuple[Path, ProtectionClassification]] = []
+    message_bundle = is_message_bundle(path.name)
 
     for entry in parse_properties(text):
         finding = _assess_entry(
-            entry, path, name_patterns, scope, references, value_ignore
+            entry, path, name_patterns, scope, references, value_ignore, message_bundle
         )
         if finding is not None:
             findings.append(finding)
@@ -111,6 +113,7 @@ def _assess_entry(
     scope: EffectiveScope,
     references: list[tuple[Path, ProtectionClassification]],
     value_ignore: tuple[str, ...],
+    message_bundle: bool,
 ) -> PropertyFinding | None:
     value = entry.value
 
@@ -126,28 +129,33 @@ def _assess_entry(
     if match_value_signature(value) is not None:
         return _finding(entry.key, PropertyFindingOrigin.VALUE_SIGNATURE)
 
+    # 3. i18n/message bundles hold text *about* secrets, not secrets (FR-015).
+    #    The unconditional layers above still apply; the name-gated gate is skipped.
+    if message_bundle:
+        return None
+
     kind = classify_value(value)
     if kind in (PropertyValueKind.EMPTY, PropertyValueKind.ENCRYPTED):
         return None
 
     tier = classify_key_tier(entry.key, name_patterns)
 
-    # 3. Externalized reference (FR-005/FR-008). A hardcoded placeholder default
+    # 4. Externalized reference (FR-005/FR-008). A hardcoded placeholder default
     #    is still assessed (FR-009); everything else is never a finding.
     if kind == PropertyValueKind.PLACEHOLDER:
         return _assess_placeholder_default(entry.key, value, tier, value_ignore)
 
-    # 4. Keys with no secret token are only reportable via a value signature,
+    # 5. Keys with no secret token are only reportable via a value signature,
     #    which was already handled above.
     if tier == KeyNameTier.NONE:
         return None
 
-    # 5. Path to a key file — follow and assess (FR-007). Missing or out-of-scope
+    # 6. Path to a key file — follow and assess (FR-007). Missing or out-of-scope
     #    references are not findings (the value is a path, not a secret).
     if kind == PropertyValueKind.PATH_LIKE:
         return _follow_reference(entry, properties_path, scope, references)
 
-    # 6. Literal credential under a secret-named key, tier-aware (FR-004/FR-006/FR-007).
+    # 7. Literal credential under a secret-named key, tier-aware (FR-004/FR-006/FR-007).
     if kind == PropertyValueKind.LITERAL and _is_reportable_literal(
         value, tier, value_ignore
     ):

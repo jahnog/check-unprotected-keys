@@ -47,6 +47,7 @@ for the finding's origin/label only:
 | `classify_value` | `(value) -> PropertyValueKind` | Existing; widened PLACEHOLDER/ENCRYPTED recognition. |
 | `placeholder_default` | `(value: str) -> str \| None` | Extract the default segment of a defaulted placeholder (FR-009). |
 | `is_credential_like` | `(value, tier: KeyNameTier) -> bool` | Tier-aware gate: STRONG base (len≥6, H≥2.5) / WEAK strict (len≥12, H≥3.0). |
+| `is_message_bundle` | `(filename: str) -> bool` | Recognize i18n/message-bundle files by locale suffix or known base name (FR-015). |
 
 `matches_secret_name` is removed (callers move to `classify_key_tier`); the old
 substring helper is not retained (DRY).
@@ -101,6 +102,7 @@ test computes recall over `MUST_FLAG` and false-positive rate over
 PropertyEntry
   ├─ inline key material? ──► PropertyFinding(INLINE_KEY_MATERIAL)   [unconditional]
   ├─ match_value_signature ─► PropertyFinding(VALUE_SIGNATURE)       [unconditional]
+  ├─ is_message_bundle(file)? ─► (stop — name-gated detection skipped, FR-015)
   ├─ classify_value
   │     EMPTY/ENCRYPTED ─────► (stop)
   │     PLACEHOLDER ─────────► placeholder_default? → reassess default : (stop)

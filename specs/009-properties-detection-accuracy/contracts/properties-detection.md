@@ -41,6 +41,15 @@ SendGrid/npm/OpenAI token, JWT, embedded-credential URL `scheme://user:pw@` with
 non-placeholder `pw`, or a high-entropy base64/hex blob ≥ 32 chars, entropy ≥ 4.0,
 ≥ 3 char classes) → **finding** (`origin=VALUE_SIGNATURE`). Key name ignored.
 
+### 3.2b Message-bundle short-circuit (FR-015)
+
+If the file is an i18n / message resource bundle (`is_message_bundle(filename)` —
+a ResourceBundle locale suffix like `_es` / `_en_US`, or a known bundle base name
+like `messages` / `labels` / `ApplicationResources`) → **stop** (not a finding).
+The unconditional §3.1 and §3.2 layers above still apply, so an embedded private
+key or recognized credential signature in a bundle is still reported; only the
+name-gated literal-credential gate (§3.6) and path following (§3.5) are skipped.
+
 ### 3.3 Value kind (FR-008 / FR-009)
 
 `classify_value(value)`:

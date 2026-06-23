@@ -259,6 +259,12 @@ rate on MUST-NOT-FLAG exceeds the configured target.
   reporting, and UTF-8→Latin-1 decode fallback.
 - **Duplicate keys**: each occurrence is assessed; the file is reported if any
   qualifying occurrence is found.
+- **Message/i18n bundles**: a `.properties` file recognized as a message bundle
+  (locale-suffixed like `messages_es.properties`, or a known bundle base name)
+  has its name-gated credential detection skipped; only inline key material and
+  recognized value signatures are reported. A non-bundle config file whose name
+  merely collides with a short locale code (for example `service_id.properties`)
+  is still fully scanned.
 
 ## Requirements *(mandatory)*
 
@@ -343,6 +349,14 @@ rate on MUST-NOT-FLAG exceeds the configured target.
   (benign secret-named configuration spanning the false-positive classes above),
   and MUST assert: recall = 100% on MUST-FLAG and false-positive rate at or below
   the configured target on MUST-NOT-FLAG, failing the build on regression.
+- **FR-015**: System MUST recognize i18n / message resource-bundle `.properties`
+  files by filename (a Java ResourceBundle locale suffix such as `_es` / `_en_US`,
+  or a known message-bundle base name such as `messages` / `labels` /
+  `ApplicationResources`) and, for those files, MUST NOT apply the name-gated
+  plaintext-credential gate or key-file reference following — their values are
+  natural-language text *about* secrets, not secrets. The unconditional
+  inline-key-material (FR-010) and value-signature (FR-003) layers MUST still
+  apply, so a genuinely embedded secret in such a file is never missed.
 
 ### Non-Functional Requirements *(mandatory)*
 
@@ -444,3 +458,9 @@ rate on MUST-NOT-FLAG exceeds the configured target.
 - **Reduction baseline (SC-003)**: "Current behavior" is the detection shipped by
   feature 008; the representative sample and the 90% reduction are measured with
   the same input set before and after.
+- **Message bundles (FR-015)**: i18n resource bundles are identified by filename
+  (a ResourceBundle locale suffix with a valid ISO 639-1 language — excluding a
+  few collision-prone codes for arbitrary base names — or a known bundle base
+  name). They are assumed to contain no live secrets; the inline-key-material and
+  value-signature layers remain the safety net against that assumption being
+  wrong.

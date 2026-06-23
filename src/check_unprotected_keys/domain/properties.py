@@ -258,6 +258,241 @@ _DURATION = re.compile(
     re.IGNORECASE,
 )
 
+# --- Message / i18n resource-bundle detection (research Decision 10) -----------
+# An i18n bundle such as ``messages_es.properties`` holds natural-language text
+# *about* secrets ("Enter your password"), never secrets. Such files skip the
+# name-gated credential gate (the unconditional inline-key-material and
+# value-signature layers still apply, so a real embedded secret is never missed).
+
+# Base names (case-insensitive) that mark a `.properties` file as a message bundle
+# regardless of locale suffix.
+_MESSAGE_BUNDLE_BASENAMES = frozenset(
+    {
+        "messages",
+        "message",
+        "msg",
+        "msgs",
+        "labels",
+        "label",
+        "text",
+        "texts",
+        "strings",
+        "string",
+        "i18n",
+        "l10n",
+        "errormessages",
+        "validationmessages",
+        "applicationresources",
+        "resourcebundle",
+        "prompts",
+        "captions",
+        "translations",
+        "translation",
+        "language",
+        "languages",
+        "locale",
+        "displaytext",
+        "uimessages",
+        "fieldlabels",
+        "tooltips",
+    }
+)
+# ISO 639-1 language codes used to recognize a Java ResourceBundle locale suffix.
+_ISO_639_1_LANGUAGES = frozenset(
+    {
+        "aa",
+        "ab",
+        "ae",
+        "af",
+        "ak",
+        "am",
+        "an",
+        "ar",
+        "as",
+        "av",
+        "ay",
+        "az",
+        "ba",
+        "be",
+        "bg",
+        "bh",
+        "bi",
+        "bm",
+        "bn",
+        "bo",
+        "br",
+        "bs",
+        "ca",
+        "ce",
+        "ch",
+        "co",
+        "cr",
+        "cs",
+        "cu",
+        "cv",
+        "cy",
+        "da",
+        "de",
+        "dv",
+        "dz",
+        "ee",
+        "el",
+        "en",
+        "eo",
+        "es",
+        "et",
+        "eu",
+        "fa",
+        "ff",
+        "fi",
+        "fj",
+        "fo",
+        "fr",
+        "fy",
+        "ga",
+        "gd",
+        "gl",
+        "gn",
+        "gu",
+        "gv",
+        "ha",
+        "he",
+        "hi",
+        "ho",
+        "hr",
+        "ht",
+        "hu",
+        "hy",
+        "hz",
+        "ia",
+        "id",
+        "ie",
+        "ig",
+        "ii",
+        "ik",
+        "io",
+        "is",
+        "it",
+        "iu",
+        "ja",
+        "jv",
+        "ka",
+        "kg",
+        "ki",
+        "kj",
+        "kk",
+        "kl",
+        "km",
+        "kn",
+        "ko",
+        "kr",
+        "ks",
+        "ku",
+        "kv",
+        "kw",
+        "ky",
+        "la",
+        "lb",
+        "lg",
+        "li",
+        "ln",
+        "lo",
+        "lt",
+        "lu",
+        "lv",
+        "mg",
+        "mh",
+        "mi",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "mt",
+        "my",
+        "na",
+        "nb",
+        "nd",
+        "ne",
+        "ng",
+        "nl",
+        "nn",
+        "no",
+        "nr",
+        "nv",
+        "ny",
+        "oc",
+        "oj",
+        "om",
+        "or",
+        "os",
+        "pa",
+        "pi",
+        "pl",
+        "ps",
+        "pt",
+        "qu",
+        "rm",
+        "rn",
+        "ro",
+        "ru",
+        "rw",
+        "sa",
+        "sc",
+        "sd",
+        "se",
+        "sg",
+        "si",
+        "sk",
+        "sl",
+        "sm",
+        "sn",
+        "so",
+        "sq",
+        "sr",
+        "ss",
+        "st",
+        "su",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "tg",
+        "th",
+        "ti",
+        "tk",
+        "tl",
+        "tn",
+        "to",
+        "tr",
+        "ts",
+        "tt",
+        "tw",
+        "ty",
+        "ug",
+        "uk",
+        "ur",
+        "uz",
+        "ve",
+        "vi",
+        "vo",
+        "wa",
+        "wo",
+        "xh",
+        "yi",
+        "yo",
+        "za",
+        "zh",
+        "zu",
+    }
+)
+# Codes that double as common English/config words; for an arbitrary (non-bundle)
+# base name these alone do NOT mark a file as i18n, to avoid suppressing a real
+# config file like ``service_id.properties`` (zero-false-negative priority).
+_LOCALE_COLLISION_CODES = frozenset(
+    {"id", "is", "it", "no", "as", "be", "or", "to", "so", "am", "my", "an"}
+)
+
 # --- Value-signature catalog (research Decision 3) ----------------------------
 
 
@@ -533,6 +768,59 @@ def _is_bare_host(value: str) -> bool:
         or bool(_IPV4.match(value))
         or bool(_HOSTNAME_DOTTED.match(value))
     )
+
+
+def is_message_bundle(filename: str) -> bool:
+    """Return whether a ``.properties`` filename is an i18n/message bundle.
+
+    True when the base name (after stripping a Java ResourceBundle locale suffix)
+    is a known message-bundle name, or when the file carries a locale suffix whose
+    language is an unambiguous ISO 639-1 code. Such files hold text *about*
+    secrets, not secrets, so the name-gated credential gate is skipped for them.
+    """
+
+    stem = filename
+    if stem.endswith(".properties"):
+        stem = stem[: -len(".properties")]
+    if not stem:
+        return False
+    base, language = _split_locale_suffix(stem)
+    if base.lower() in _MESSAGE_BUNDLE_BASENAMES:
+        return True
+    return language is not None and language not in _LOCALE_COLLISION_CODES
+
+
+def _split_locale_suffix(stem: str) -> tuple[str, str | None]:
+    """Split a bundle stem into ``(base, language)`` at a trailing locale suffix.
+
+    Returns ``(stem, None)`` when no valid trailing locale is present.
+    """
+
+    segments = stem.split("_")
+    for index in range(1, len(segments)):
+        language = segments[index]
+        if (
+            language.islower()
+            and language in _ISO_639_1_LANGUAGES
+            and all(_is_locale_extra(segment) for segment in segments[index + 1 :])
+        ):
+            return "_".join(segments[:index]), language
+    return stem, None
+
+
+def _is_locale_extra(segment: str) -> bool:
+    """Return whether a segment is a locale region / script / variant token."""
+
+    if len(segment) == 2 and segment.isalpha() and segment.isupper():
+        return True  # ISO 3166-1 country, e.g. US
+    if len(segment) == 3 and segment.isdigit():
+        return True  # UN M.49 region
+    return (
+        len(segment) == 4
+        and segment.isalpha()
+        and segment[0].isupper()
+        and segment[1:].islower()
+    )  # ISO 15924 script, e.g. Hant
 
 
 def placeholder_default(value: str) -> str | None:

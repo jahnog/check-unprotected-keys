@@ -159,6 +159,12 @@ algorithm/keystore constants, durations, header names, versions), and obvious no
 (booleans, numbers) are never reported. A hardcoded placeholder default
 (`${VAR:-hunter2}`) is still assessed.
 
+i18n / message resource bundles (recognized by filename — a locale suffix such as
+`messages_es.properties` / `ApplicationResources_fr_CA.properties`, or a known
+bundle base name like `messages`/`labels`) hold text *about* secrets rather than
+secrets, so their name-based credential detection is skipped; embedded key
+material and recognized credential signatures in such files are still reported.
+
 The secret-indicating property-name patterns are configurable via `property_name_patterns`,
 using the same omit / empty / replace semantics as the ignore keys: omit for the packaged
 catalog (`password`, `secret`, `private`, `key`, `token`, …), `[]` to disable

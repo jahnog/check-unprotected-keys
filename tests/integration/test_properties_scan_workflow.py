@@ -206,6 +206,31 @@ def test_externalized_encrypted_and_certificate_values_are_silent(
     assert result.exit_code == 0
 
 
+def test_message_bundle_prose_is_silent_but_real_config_is_reported(
+    tmp_path: Path,
+) -> None:
+    # i18n bundle holds text about secrets; sibling real config holds one.
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "messages_es.properties").write_text(
+        "error.password.invalid=La contrasena no es valida\n"
+        "user.secret.question=Cual es tu pregunta secreta\n",
+        encoding="utf-8",
+    )
+    (project / "application.properties").write_text(
+        "db.password=R3alSecret99\n", encoding="utf-8"
+    )
+    write_scan_configuration(
+        tmp_path, base_folders=("project",), filename_patterns=("*.properties",)
+    )
+
+    result, stdout, _stderr = _run(tmp_path)
+
+    config_path = (project / "application.properties").resolve()
+    assert set(nonempty_output_lines(stdout)) == {f"{config_path}#db.password"}
+    assert result.exit_code == 1
+
+
 def test_secret_value_never_appears_in_any_output_stream(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
