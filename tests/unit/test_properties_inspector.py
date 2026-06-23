@@ -136,3 +136,36 @@ def test_unreadable_file_is_flagged(tmp_path: Path) -> None:
 
     assert result.unreadable is True
     assert result.findings == ()
+
+
+def test_value_signature_reported_under_non_secret_key(tmp_path: Path) -> None:
+    # 'datasource.url' is not a secret-named key, yet the embedded credential is.
+    props = _write(
+        tmp_path / "app.properties",
+        "datasource.url=jdbc:mysql://root:S3cr3tPass@db:3306/app\n",
+    )
+
+    result = inspect_properties_file(
+        props, name_patterns=_PATTERNS, scope=_scope(tmp_path)
+    )
+
+    assert [(f.property_key, f.origin) for f in result.findings] == [
+        ("datasource.url", PropertyFindingOrigin.VALUE_SIGNATURE)
+    ]
+
+
+def test_value_ignore_suppresses_a_would_be_finding(tmp_path: Path) -> None:
+    props = _write(tmp_path / "app.properties", "db.password=internaldefault9\n")
+
+    without_ignore = inspect_properties_file(
+        props, name_patterns=_PATTERNS, scope=_scope(tmp_path)
+    )
+    with_ignore = inspect_properties_file(
+        props,
+        name_patterns=_PATTERNS,
+        scope=_scope(tmp_path),
+        value_ignore=("internaldefault9",),
+    )
+
+    assert [f.property_key for f in without_ignore.findings] == ["db.password"]
+    assert with_ignore.findings == ()
