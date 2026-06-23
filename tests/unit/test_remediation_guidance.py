@@ -92,10 +92,8 @@ def test_scan_service_assigns_low_friction_recommendations(
     assert "vault-managed" in automation_recommendation.summary
 
     assert embedded_recommendation is not None
-    assert embedded_recommendation.title == "Externalize the embedded private key"
-    assert (
-        "Remove the private key from the config file" in embedded_recommendation.summary
-    )
+    assert embedded_recommendation.title == "Externalize the embedded secret"
+    assert "Remove the secret from the config file" in embedded_recommendation.summary
 
     assert unknown_recommendation is not None
     assert (

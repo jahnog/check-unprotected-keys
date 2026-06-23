@@ -1,24 +1,29 @@
 <!--
 Sync Impact Report
-Version change: 1.0.0 -> 1.1.0
+Version change: 1.1.0 -> 1.2.0
 Modified principles:
-- I. Pythonic SOLID Architecture -> I. SOLID Architecture (explicit SOLID tenets)
-- II. Clean Code, Types, and Intentional Patterns -> II. Clean Code, DRY, and KISS
-- III. Tests and Coverage Are Release Gates -> III. Tests, Coverage, and Post-Implementation Verification
+- None renamed
 Added sections:
-- None (existing principles expanded; no new top-level sections)
+- VI. Git Flow Branching & Manual Commit Discipline (new principle)
+- Engineering Standards: branching & commit-ownership bullet
+- Delivery Workflow & Quality Gates: feature-branch lifecycle bullet
 Removed sections:
 - None
 Templates requiring updates:
-- ✅ .specify/templates/plan-template.md
-- ✅ .specify/templates/spec-template.md
-- ✅ .specify/templates/tasks-template.md
+- ✅ .specify/templates/plan-template.md (Branch placeholder -> feature/<slug>; Constitution Check gate)
+- ✅ .specify/templates/spec-template.md (Feature Branch placeholder -> feature/<slug>)
+- ✅ .specify/templates/tasks-template.md (reviewed; no branch/commit references — no change needed)
+- ✅ .specify/extensions.yml (auto-commit hooks disabled; non-compliant feature-branch auto-creation disabled)
 Related guidance reviewed:
-- ✅ .github/copilot-instructions.md (Spec Kit context pointer only; no principle enumeration — no change needed)
+- ✅ .github/copilot-instructions.md (Spec Kit context pointer only — no change needed)
 - ✅ CLAUDE.md (Spec Kit context pointer only — no change needed)
-- ✅ README.md (no principle enumeration — no change needed)
+- ✅ README.md (no principle/branching enumeration — no change needed)
 Follow-up TODOs:
-- None
+- TODO(git-flow-feature-automation): Rework the `speckit.git.feature` command plus
+  create-new-feature.sh / create-new-feature.ps1 to run `git flow feature start <slug>`
+  (producing `feature/<slug>`) at the before_implement hook, instead of creating numbered
+  `NNN-slug` branches via `git checkout -b` at specify time. Until that rework lands, create
+  the feature branch manually with `git flow feature start <slug>` just before implementing.
 -->
 # Find Unencrypted Keys Constitution
 
@@ -113,6 +118,32 @@ artifact, and logs or reports MUST redact sensitive key material by default.
 Rationale: A security-oriented command-line tool is only trustworthy when its
 packaged artifact is reproducible, reviewable, and safe to operate.
 
+### VI. Git Flow Branching & Manual Commit Discipline
+The repository MUST follow the Git Flow branching model: `main` holds production
+releases, `develop` is the integration branch, and all feature work happens on
+short-lived `feature/*` branches that branch from and merge back into `develop`.
+
+- **Dedicated feature branch**: every feature MUST be implemented on its own Git
+	Flow feature branch. The branch MUST be created just before implementation of
+	that feature begins, using `git flow feature start <slug>`, which produces a
+	branch named `feature/<slug>`.
+- **Slug format**: `<slug>` MUST be a brief, kebab-case description of the feature
+	of at most four words (e.g., `move-ignore-to-config`).
+- **Only feature-start is automated**: `git flow feature start` is the SINGLE git
+	operation that tooling or automation MAY perform on the user's behalf. No other
+	git action — commits, staging, merges, rebases, pushes, tags, branch deletion,
+	or pull-request creation — may be automated under any circumstance.
+- **Manual commits and PRs**: all commits and pull requests MUST be authored and
+	managed manually by the user. Automatic or auto-commit behavior on ANY branch
+	is prohibited; tooling MUST NOT create commits before, during, or after any
+	workflow step.
+
+Rationale: A security-oriented tool demands a clear, auditable history with a
+human deliberately in the loop for every recorded change. Reserving automation
+for branch creation alone keeps feature work isolated and reviewable while
+ensuring no commit or published change ever enters the history without explicit
+human authorship.
+
 ## Engineering Standards
 
 - The repository MUST use `pyproject.toml` as the single source of truth for
@@ -121,6 +152,9 @@ packaged artifact is reproducible, reviewable, and safe to operate.
 	executable entrypoints MUST be thin adapters over application services.
 - Code MUST satisfy SOLID, Clean Code, DRY, and KISS; reviewers MUST reject
 	duplicated logic, needless complexity, and broken layer boundaries.
+- Feature work MUST occur on a Git Flow `feature/<slug>` branch (slug ≤ 4 words,
+	kebab-case) created just before implementation; commits and pull requests are
+	owned and performed manually by the user, never by automation.
 - Dependency additions MUST be justified in the plan or pull request, and
 	unused dependencies MUST be removed promptly.
 - The default quality stack MUST include unit testing, coverage reporting,
@@ -136,6 +170,9 @@ packaged artifact is reproducible, reviewable, and safe to operate.
 - Every spec and implementation plan MUST document architecture boundaries,
 	test strategy, coverage expectations, quality commands, and executable
 	packaging impact before implementation starts.
+- Just before implementation of a feature begins, a Git Flow feature branch
+	(`feature/<slug>`) MUST be started via `git flow feature start`; all subsequent
+	commits and the pull request for that feature are created manually by the user.
 - Pull requests and review checklists MUST confirm compliance with SOLID
 	boundaries, Clean Code / DRY / KISS expectations, required tests, coverage
 	reporting, and standalone packaging rules.
@@ -165,4 +202,4 @@ Check section, in every pull request review, and before every release artifact
 is published. Any approved exception MUST be time-boxed, documented with
 rationale, and tracked to removal.
 
-**Version**: 1.1.0 | **Ratified**: 2026-06-04 | **Last Amended**: 2026-06-22
+**Version**: 1.2.0 | **Ratified**: 2026-06-04 | **Last Amended**: 2026-06-23

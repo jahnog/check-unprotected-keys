@@ -104,7 +104,8 @@ filename_patterns = [
   "*.env",
   "*.env.*",
   "*.ovpn",
-  "*.tfvars"
+  "*.tfvars",
+  "*.properties"
 ]
 ```
 
@@ -115,6 +116,7 @@ Default coverage categories:
 - curated config subtrees such as `config/keys`, `config/certs`, and `.config/secrets`
 - deployment and infrastructure roots such as `deploy`, `infra`, `ansible`, `terraform`, `docker`, `helm`, `k8s`, and `vpn`
 - high-signal text containers such as `.env*`, `*.ovpn`, and `*.tfvars` when they embed supported key blocks
+- Java `*.properties` files, inspected for secret-named properties holding plaintext credentials, inline key material, or unprotected key-file references (see below)
 
 Default non-goals and exclusions (configured via `ignore_filename_patterns` in
 `.check-unprotected-keys.toml`; run `--print-example-config` for the full packaged lists):
@@ -130,6 +132,48 @@ Omit an ignore key to use packaged defaults. Set `ignore_directories = []` or
 entries, only those entries apply (replace semantics). Legacy configs with partial
 `ignore_directories` extension lists receive a load-time stderr warning — copy packaged
 defaults and merge your custom entries.
+
+### Java `.properties` secret inspection
+
+`*.properties` files are scanned by default using a layered, confidence-tiered
+classifier tuned for near-zero false positives without missing real secrets. It reports:
+
+- a plaintext credential under a secret-named key — **token-aware** key matching (the key
+  is split on `. _ - /` and camelCase, so `compass`/`tokenizer` no longer match
+  `pass`/`token`) graded **STRONG** (a clear credential name like `*.password`) or
+  **WEAK** (a broad token like `key`/`token`, or a name qualified by a non-secret word such
+  as `*.alias`/`*.algorithm`/`*.enabled`); STRONG keys flag even word-like passwords, WEAK
+  keys require high-entropy or a known signature;
+- a value matching a known credential **signature** — cloud/service tokens (AWS, GitHub,
+  Slack, Google, Stripe, …), JWTs, private keys, and connection strings with embedded
+  credentials (`scheme://user:password@host`) — reported **regardless of the key name**;
+- inline key material embedded in the value (private keys only; public keys and
+  certificates are not reported); and
+- a path that references an **unprotected** key file (relative paths resolve against the
+  `.properties` file's own directory; out-of-scope and missing paths are skipped).
+
+Externalized references (`${...}`, `{{...}}`, `@...@`, `#{...}`, and `vault:`/`env:`-style
+schemes), encrypted wrappers (`ENC(...)`, `{cipher}...`), sample/placeholder values
+(`changeme`, `<password>`, …), recognizable non-secret shapes (hostnames, class names,
+algorithm/keystore constants, durations, header names, versions), and obvious non-secrets
+(booleans, numbers) are never reported. A hardcoded placeholder default
+(`${VAR:-hunter2}`) is still assessed.
+
+i18n / message resource bundles (recognized by filename — a locale suffix such as
+`messages_es.properties` / `ApplicationResources_fr_CA.properties`, or a known
+bundle base name like `messages`/`labels`) hold text *about* secrets rather than
+secrets, so their name-based credential detection is skipped; embedded key
+material and recognized credential signatures in such files are still reported.
+
+The secret-indicating property-name patterns are configurable via `property_name_patterns`,
+using the same omit / empty / replace semantics as the ignore keys: omit for the packaged
+catalog (`password`, `secret`, `private`, `key`, `token`, …), `[]` to disable
+property-name matching, or a non-empty list to replace the defaults. The optional
+`property_value_ignore` adds organization-specific values to always treat as benign.
+
+Each offending property is reported on its own stdout line as `<path>#<property key>`, so
+findings are independently greppable. **Secret values are never printed** to stdout,
+stderr, or logs — only the file path and the property key name appear.
 
 ## Usage
 

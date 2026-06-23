@@ -31,7 +31,7 @@ def emit_scan_result(
         return
 
     for finding in result.findings:
-        print(finding.file_path, file=stdout_stream)
+        print(finding.output_line, file=stdout_stream)
 
     print(
         (
@@ -88,7 +88,7 @@ def _render_recommendation_lines(finding: KeyFinding) -> tuple[str, ...]:
         return ()
 
     return (
-        f"Recommended protection for {finding.file_path}:",
+        f"Recommended protection for {finding.output_line}:",
         f"Usage: {remediation.usage_category.value}",
         f"Method: {remediation.title}",
         f"Summary: {remediation.summary}",

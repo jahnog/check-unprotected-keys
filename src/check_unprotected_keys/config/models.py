@@ -20,5 +20,7 @@ class ScanConfigSection:
     ignore_directories: tuple[str, ...]
     ignore_filename_patterns: tuple[str, ...]
     filename_patterns: tuple[str, ...]
+    property_name_patterns: tuple[str, ...] = ()
+    property_value_ignore: tuple[str, ...] = ()
     max_directory_visits: int = 100_000
     load_warnings: tuple[str, ...] = ()

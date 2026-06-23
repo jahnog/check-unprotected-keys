@@ -175,3 +175,16 @@ def test_malformed_key_with_expanded_key_extension_is_not_reported(
 
     assert assessment.classification == ProtectionClassification.MALFORMED
     assert not is_finding(assessment)
+
+
+def test_certificate_block_is_classified_as_public_only(tmp_path: Path) -> None:
+    candidate = tmp_path / "tls.pem"
+    candidate.write_text(
+        "-----BEGIN CERTIFICATE-----\nMIIBexample\n-----END CERTIFICATE-----\n",
+        encoding="utf-8",
+    )
+
+    assessment = inspect_candidate_file(candidate)
+
+    assert assessment.classification == ProtectionClassification.PUBLIC_ONLY
+    assert not is_finding(assessment)

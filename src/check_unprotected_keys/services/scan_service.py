@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
-from check_unprotected_keys.adapters import filesystem, key_parsers
+from check_unprotected_keys.adapters import (
+    filesystem,
+    key_parsers,
+    properties_inspector,
+)
 from check_unprotected_keys.adapters.filesystem import (
     DirectoryLimitExceededError,
     VisitedDirectoryTracker,
@@ -13,6 +18,7 @@ from check_unprotected_keys.domain.classification import is_finding
 from check_unprotected_keys.domain.models import (
     CandidateFile,
     CandidateState,
+    EffectiveScope,
     ProtectionClassification,
     RemediationRecommendation,
     ScanRequest,
@@ -137,17 +143,17 @@ def build_remediation_recommendation(
         case UsageCategory.EMBEDDED_CONFIG_SECRET:
             return RemediationRecommendation(
                 usage_category=usage_category,
-                title="Externalize the embedded private key",
+                title="Externalize the embedded secret",
                 summary=(
-                    "Remove the private key from the config file and load it "
+                    "Remove the secret from the config file and load it "
                     "from a vault, secret manager, or OS/application key store."
                 ),
                 rationale=(
-                    "Embedded keys are hard to rotate and spread plaintext "
+                    "Embedded secrets are hard to rotate and spread plaintext "
                     "secret material through config distribution."
                 ),
                 next_step_hint=(
-                    "Delete the embedded key from the file and leave only a "
+                    "Delete the embedded secret from the file and leave only a "
                     "reference or lookup identifier."
                 ),
             )
@@ -206,7 +212,19 @@ class ScanService:
         for issue in issues:
             result.record_unreadable(issue.error_type)
 
+        # Seed with every directly-discovered file so a key file reached only by
+        # following a .properties reference is counted at most once (FR-013).
+        scanned_paths: set[Path] = {
+            candidate.canonical_path for candidate in candidates
+        }
+
         for candidate in candidates:
+            if candidate.canonical_path.suffix == ".properties":
+                self._inspect_properties_candidate(
+                    candidate, request, scope, result, scanned_paths
+                )
+                continue
+
             result.files_scanned += 1
             assessment = key_parsers.inspect_candidate_file(candidate.canonical_path)
 
@@ -235,3 +253,48 @@ class ScanService:
                 candidate.state = CandidateState.CLEAN
 
         return result
+
+    def _inspect_properties_candidate(
+        self,
+        candidate: CandidateFile,
+        request: ScanRequest,
+        scope: EffectiveScope,
+        result: ScanResult,
+        scanned_paths: set[Path],
+    ) -> None:
+        """Inspect one ``.properties`` candidate for per-property secrets."""
+
+        result.files_scanned += 1
+        inspection = properties_inspector.inspect_properties_file(
+            candidate.canonical_path,
+            name_patterns=request.configuration.property_name_patterns,
+            scope=scope,
+            value_ignore=request.configuration.property_value_ignore,
+        )
+
+        if inspection.unreadable:
+            result.record_unreadable()
+            candidate.state = CandidateState.UNREADABLE
+            return
+
+        # Count followed key files once (FR-013); their findings are emitted below.
+        for reference_path, _classification in inspection.assessed_references:
+            if reference_path not in scanned_paths:
+                scanned_paths.add(reference_path)
+                result.files_scanned += 1
+
+        if not inspection.findings:
+            candidate.state = CandidateState.CLEAN
+            return
+
+        candidate.state = CandidateState.REPORTED
+        usage_category = UsageCategory.EMBEDDED_CONFIG_SECRET
+        remediation = build_remediation_recommendation(usage_category)
+        for finding in inspection.findings:
+            result.add_finding(
+                file_path=candidate.display_path,
+                classification=finding.classification,
+                usage_category=usage_category,
+                remediation=remediation,
+                property_key=finding.property_key,
+            )

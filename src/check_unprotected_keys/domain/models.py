@@ -55,6 +55,8 @@ class SearchConfiguration:
     ignore_directories: tuple[str, ...]
     ignore_filename_patterns: tuple[str, ...]
     filename_patterns: tuple[str, ...]
+    property_name_patterns: tuple[str, ...] = ()
+    property_value_ignore: tuple[str, ...] = ()
     max_directory_visits: int = 100_000
     load_warnings: tuple[str, ...] = ()
 
@@ -130,12 +132,31 @@ class MalformedScanIssue:
 
 @dataclass(frozen=True, slots=True)
 class KeyFinding:
-    """A file-level violation emitted to stdout."""
+    """A file-level violation emitted to stdout.
+
+    property_key is set only for property-level findings inside an inspected
+    `.properties` file; it carries the offending property *key name*, never the
+    secret value, so findings remain safe to print.
+    """
 
     file_path: str
     classification: ProtectionClassification
     usage_category: UsageCategory | None = None
     remediation: RemediationRecommendation | None = None
+    property_key: str | None = None
+
+    @property
+    def output_line(self) -> str:
+        """Return the canonical stdout line for this finding.
+
+        Property-level findings render as ``<file path>#<property key>`` so each
+        offending property is independently identifiable; file-level findings
+        render as the path alone.
+        """
+
+        if self.property_key is not None:
+            return f"{self.file_path}#{self.property_key}"
+        return self.file_path
 
 
 @dataclass(slots=True)
@@ -173,6 +194,7 @@ class ScanResult:
         classification: ProtectionClassification,
         usage_category: UsageCategory | None = None,
         remediation: RemediationRecommendation | None = None,
+        property_key: str | None = None,
     ) -> None:
         self.findings.append(
             KeyFinding(
@@ -180,6 +202,7 @@ class ScanResult:
                 classification=classification,
                 usage_category=usage_category,
                 remediation=remediation,
+                property_key=property_key,
             )
         )
 

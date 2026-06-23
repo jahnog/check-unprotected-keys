@@ -234,6 +234,6 @@ def test_default_scan_contract_emits_usage_aware_remediation_guidance(
     assert "Usage: automation-or-deployment-key" in stderr_text
     assert "Method: Move to a managed secret or identity" in stderr_text
     assert "Usage: embedded-config-secret" in stderr_text
-    assert "Method: Externalize the embedded private key" in stderr_text
+    assert "Method: Externalize the embedded secret" in stderr_text
     assert "Usage: unknown" in stderr_text
     assert "Method: Classify usage before choosing a protection path" in stderr_text
