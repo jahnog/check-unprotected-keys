@@ -5,11 +5,18 @@ and heuristics in :mod:`check_unprotected_keys.domain.properties`, reuses
 :mod:`check_unprotected_keys.adapters.key_parsers` for embedded and referenced
 key material, and follows key-file references. It never stores or returns a
 property value, so findings are safe to print.
+
+Per-entry assessment runs through the ordered ``ASSESSMENT_RULES`` registry
+(spec 010 FR-006): adding a detection layer means registering one
+``AssessmentRule`` at an explicit position — existing rules are not edited.
+The registry order replicates the historical fixed pipeline exactly
+(specs/010-code-quality-audit/contracts/extension-points.md).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
@@ -17,6 +24,8 @@ from check_unprotected_keys.adapters import key_parsers
 from check_unprotected_keys.domain.models import (
     EffectiveScope,
     ProtectionClassification,
+    SkippedLocation,
+    SkipPhase,
 )
 from check_unprotected_keys.domain.properties import (
     KeyNameTier,
@@ -56,11 +65,16 @@ class PropertyFinding:
 
 @dataclass(frozen=True, slots=True)
 class PropertyInspectionResult:
-    """Outcome of inspecting one ``.properties`` file."""
+    """Outcome of inspecting one ``.properties`` file.
+
+    ``skipped`` carries key-file references that could not be resolved and
+    followed (FR-001); they are surfaced as scan warnings, never dropped.
+    """
 
     findings: tuple[PropertyFinding, ...]
     assessed_references: tuple[tuple[Path, ProtectionClassification], ...]
     unreadable: bool
+    skipped: tuple[SkippedLocation, ...] = ()
 
 
 def inspect_properties_file(
@@ -82,12 +96,21 @@ def inspect_properties_file(
     text = _decode(raw)
     findings: list[PropertyFinding] = []
     references: list[tuple[Path, ProtectionClassification]] = []
+    skipped: list[SkippedLocation] = []
     message_bundle = is_message_bundle(path.name)
 
     for entry in parse_properties(text):
-        finding = _assess_entry(
-            entry, path, name_patterns, scope, references, value_ignore, message_bundle
+        context = AssessmentContext(
+            entry=entry,
+            properties_path=path,
+            name_patterns=name_patterns,
+            scope=scope,
+            references=references,
+            value_ignore=value_ignore,
+            message_bundle=message_bundle,
+            skipped=skipped,
         )
+        finding = _assess_entry(context)
         if finding is not None:
             findings.append(finding)
 
@@ -95,6 +118,7 @@ def inspect_properties_file(
         findings=tuple(findings),
         assessed_references=tuple(references),
         unreadable=False,
+        skipped=tuple(skipped),
     )
 
 
@@ -106,60 +130,169 @@ def _finding(key: str, origin: PropertyFindingOrigin) -> PropertyFinding:
     )
 
 
-def _assess_entry(
-    entry: PropertyEntry,
-    properties_path: Path,
-    name_patterns: tuple[str, ...],
-    scope: EffectiveScope,
-    references: list[tuple[Path, ProtectionClassification]],
-    value_ignore: tuple[str, ...],
-    message_bundle: bool,
-) -> PropertyFinding | None:
-    value = entry.value
+@dataclass(slots=True)
+class AssessmentContext:
+    """Shared state one property entry carries through the assessment rules.
 
-    # 1. Inline key material — unconditional (FR-010), independent of the key
-    #    name. Public keys and certificates classify as non-UNPROTECTED here.
-    material = key_parsers.inspect_text_for_key_material(value)
-    if material is not None:
-        if material.classification == ProtectionClassification.UNPROTECTED:
-            return _finding(entry.key, PropertyFindingOrigin.INLINE_KEY_MATERIAL)
-        return None
+    ``kind`` and ``tier`` are computed lazily so gate rules that never need
+    them (inline material, signatures, bundles) stay as cheap as before.
+    """
 
-    # 2. Value signature — unconditional (FR-003), independent of the key name.
-    if match_value_signature(value) is not None:
-        return _finding(entry.key, PropertyFindingOrigin.VALUE_SIGNATURE)
+    entry: PropertyEntry
+    properties_path: Path
+    name_patterns: tuple[str, ...]
+    scope: EffectiveScope
+    references: list[tuple[Path, ProtectionClassification]]
+    value_ignore: tuple[str, ...]
+    message_bundle: bool
+    skipped: list[SkippedLocation]
+    _kind: PropertyValueKind | None = field(default=None, init=False)
+    _tier: KeyNameTier | None = field(default=None, init=False)
 
-    # 3. i18n/message bundles hold text *about* secrets, not secrets (FR-015).
-    #    The unconditional layers above still apply; the name-gated gate is skipped.
-    if message_bundle:
-        return None
+    @property
+    def value(self) -> str:
+        return self.entry.value
 
-    kind = classify_value(value)
-    if kind in (PropertyValueKind.EMPTY, PropertyValueKind.ENCRYPTED):
-        return None
+    @property
+    def kind(self) -> PropertyValueKind:
+        if self._kind is None:
+            self._kind = classify_value(self.entry.value)
+        return self._kind
 
-    tier = classify_key_tier(entry.key, name_patterns)
+    @property
+    def tier(self) -> KeyNameTier:
+        if self._tier is None:
+            self._tier = classify_key_tier(self.entry.key, self.name_patterns)
+        return self._tier
 
-    # 4. Externalized reference (FR-005/FR-008). A hardcoded placeholder default
-    #    is still assessed (FR-009); everything else is never a finding.
-    if kind == PropertyValueKind.PLACEHOLDER:
-        return _assess_placeholder_default(entry.key, value, tier, value_ignore)
 
-    # 5. Keys with no secret token are only reportable via a value signature,
-    #    which was already handled above.
-    if tier == KeyNameTier.NONE:
-        return None
+@dataclass(frozen=True, slots=True)
+class RuleOutcome:
+    """What one assessment rule decided for the current entry.
 
-    # 6. Path to a key file — follow and assess (FR-007). Missing or out-of-scope
-    #    references are not findings (the value is a path, not a secret).
-    if kind == PropertyValueKind.PATH_LIKE:
-        return _follow_reference(entry, properties_path, scope, references)
+    ``finding`` reports the entry; ``stop=True`` ends the pipeline without a
+    finding. Both unset means "no opinion — try the next rule".
+    """
 
-    # 7. Literal credential under a secret-named key, tier-aware (FR-004/FR-006/FR-007).
-    if kind == PropertyValueKind.LITERAL and _is_reportable_literal(
-        value, tier, value_ignore
+    finding: PropertyFinding | None = None
+    stop: bool = False
+
+
+_CONTINUE = RuleOutcome()
+_STOP = RuleOutcome(stop=True)
+
+
+@dataclass(frozen=True, slots=True)
+class AssessmentRule:
+    """One registered step of the per-property assessment pipeline."""
+
+    name: str
+    assess: Callable[[AssessmentContext], RuleOutcome]
+
+
+def _rule_inline_key_material(context: AssessmentContext) -> RuleOutcome:
+    # Unconditional (FR-010), independent of the key name. Public keys and
+    # certificates classify as non-UNPROTECTED here.
+    material = key_parsers.inspect_text_for_key_material(context.value)
+    if material is None:
+        return _CONTINUE
+    if material.classification == ProtectionClassification.UNPROTECTED:
+        return RuleOutcome(
+            finding=_finding(
+                context.entry.key, PropertyFindingOrigin.INLINE_KEY_MATERIAL
+            )
+        )
+    return _STOP
+
+
+def _rule_value_signature(context: AssessmentContext) -> RuleOutcome:
+    # Unconditional (FR-003), independent of the key name.
+    if match_value_signature(context.value) is not None:
+        return RuleOutcome(
+            finding=_finding(context.entry.key, PropertyFindingOrigin.VALUE_SIGNATURE)
+        )
+    return _CONTINUE
+
+
+def _rule_message_bundle_gate(context: AssessmentContext) -> RuleOutcome:
+    # i18n/message bundles hold text *about* secrets, not secrets (FR-015).
+    # The unconditional rules above still apply; the name-gated ones are skipped.
+    return _STOP if context.message_bundle else _CONTINUE
+
+
+def _rule_value_kind_gate(context: AssessmentContext) -> RuleOutcome:
+    if context.kind in (PropertyValueKind.EMPTY, PropertyValueKind.ENCRYPTED):
+        return _STOP
+    return _CONTINUE
+
+
+def _rule_placeholder_default(context: AssessmentContext) -> RuleOutcome:
+    # Externalized reference (FR-005/FR-008). A hardcoded placeholder default
+    # is still assessed (FR-009); everything else is never a finding.
+    if context.kind != PropertyValueKind.PLACEHOLDER:
+        return _CONTINUE
+    return RuleOutcome(
+        finding=_assess_placeholder_default(
+            context.entry.key, context.value, context.tier, context.value_ignore
+        ),
+        stop=True,
+    )
+
+
+def _rule_tier_gate(context: AssessmentContext) -> RuleOutcome:
+    # Keys with no secret token are only reportable via a value signature,
+    # which was already handled above.
+    return _STOP if context.tier == KeyNameTier.NONE else _CONTINUE
+
+
+def _rule_reference_follow(context: AssessmentContext) -> RuleOutcome:
+    # Path to a key file — follow and assess (FR-007). Missing or out-of-scope
+    # references are not findings (the value is a path, not a secret).
+    if context.kind != PropertyValueKind.PATH_LIKE:
+        return _CONTINUE
+    return RuleOutcome(
+        finding=_follow_reference(
+            context.entry,
+            context.properties_path,
+            context.scope,
+            context.references,
+            context.skipped,
+        ),
+        stop=True,
+    )
+
+
+def _rule_literal_credential(context: AssessmentContext) -> RuleOutcome:
+    # Literal credential under a secret-named key (FR-004/FR-006/FR-007).
+    if context.kind == PropertyValueKind.LITERAL and _is_reportable_literal(
+        context.value, context.tier, context.value_ignore
     ):
-        return _finding(entry.key, PropertyFindingOrigin.PLAINTEXT_SECRET)
+        return RuleOutcome(
+            finding=_finding(context.entry.key, PropertyFindingOrigin.PLAINTEXT_SECRET)
+        )
+    return _CONTINUE
+
+
+# Ordered registry: evaluated top to bottom; the first finding or stop wins.
+# Insert new detection layers at an explicit position; do not edit existing
+# rules (contracts/extension-points.md).
+ASSESSMENT_RULES: tuple[AssessmentRule, ...] = (
+    AssessmentRule("inline-key-material", _rule_inline_key_material),
+    AssessmentRule("value-signature", _rule_value_signature),
+    AssessmentRule("message-bundle-gate", _rule_message_bundle_gate),
+    AssessmentRule("value-kind-gate", _rule_value_kind_gate),
+    AssessmentRule("placeholder-default", _rule_placeholder_default),
+    AssessmentRule("tier-gate", _rule_tier_gate),
+    AssessmentRule("reference-follow", _rule_reference_follow),
+    AssessmentRule("literal-credential", _rule_literal_credential),
+)
+
+
+def _assess_entry(context: AssessmentContext) -> PropertyFinding | None:
+    for rule in ASSESSMENT_RULES:
+        outcome = rule.assess(context)
+        if outcome.finding is not None or outcome.stop:
+            return outcome.finding
     return None
 
 
@@ -198,6 +331,7 @@ def _follow_reference(
     properties_path: Path,
     scope: EffectiveScope,
     references: list[tuple[Path, ProtectionClassification]],
+    skipped: list[SkippedLocation],
 ) -> PropertyFinding | None:
     candidate = Path(entry.value.strip()).expanduser()
     if not candidate.is_absolute():
@@ -206,13 +340,35 @@ def _follow_reference(
     try:
         canonical = candidate.resolve(strict=True)
     except OSError:
-        return None  # Missing or unresolvable reference — skip gracefully.
+        # Missing or unresolvable reference — not a finding (the value is a
+        # path, not a secret), but never a silent drop (FR-001).
+        skipped.append(
+            SkippedLocation(
+                path=candidate,
+                reason="unresolvable-reference",
+                phase=SkipPhase.REFERENCE_FOLLOW,
+            )
+        )
+        return None
 
     if not _within_scope(canonical, scope):
         return None
 
     assessment = key_parsers.inspect_candidate_file(canonical)
     references.append((canonical, assessment.classification))
+
+    if assessment.classification == ProtectionClassification.UNREADABLE:
+        # Resolved but uninspectable reference — never a silent drop (FR-001).
+        skipped.append(
+            SkippedLocation(
+                path=canonical,
+                reason=(
+                    assessment.reason or ProtectionClassification.UNREADABLE.value
+                ),
+                phase=SkipPhase.REFERENCE_FOLLOW,
+            )
+        )
+        return None
 
     if assessment.classification == ProtectionClassification.UNPROTECTED:
         return PropertyFinding(
@@ -231,6 +387,14 @@ def _within_scope(canonical: Path, scope: EffectiveScope) -> bool:
 
 
 def _decode(raw: bytes) -> str:
+    """Decode ``.properties`` bytes: UTF-8 first, then Latin-1.
+
+    The Latin-1 fallback is format-intended, not a guess: the Java
+    ``.properties`` format's legacy encoding *is* ISO-8859-1, and Latin-1
+    decodes every byte sequence losslessly (no replacement characters), so it
+    cannot corrupt content into a false classification (FR-012).
+    """
+
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:

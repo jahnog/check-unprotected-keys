@@ -28,7 +28,8 @@ def emit_scan_result(
             "to scan larger trees, or narrow the scope with --start-folder.",
             file=stderr_stream,
         )
-        return
+        if not _has_partial_content(result):
+            return
 
     for finding in result.findings:
         print(finding.output_line, file=stdout_stream)
@@ -43,11 +44,36 @@ def emit_scan_result(
 
     _emit_issue_summary(result, stderr_stream)
     _emit_malformed_paths(result, stderr_stream)
+    _emit_skipped_locations(result, stderr_stream)
     _emit_remediation_guidance(result, stderr_stream)
 
     if result.safe_issue_breakdown:
         print(
             "Issue categories: " + ", ".join(result.safe_issue_breakdown),
+            file=stderr_stream,
+        )
+
+    if result.directory_limit_exceeded:
+        print(
+            "NOTE: Partial results above cover the directories visited "
+            "before the limit.",
+            file=stderr_stream,
+        )
+
+
+def _has_partial_content(result: ScanResult) -> bool:
+    return bool(
+        result.files_scanned
+        or result.findings
+        or result.malformed_issues
+        or result.skipped_locations
+    )
+
+
+def _emit_skipped_locations(result: ScanResult, stderr_stream: TextIO) -> None:
+    for skip in sorted(result.skipped_locations, key=lambda entry: str(entry.path)):
+        print(
+            f"WARNING: skipped {skip.path} ({skip.reason}, during {skip.phase.value})",
             file=stderr_stream,
         )
 

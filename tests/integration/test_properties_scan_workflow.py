@@ -7,7 +7,7 @@ from pathlib import Path
 
 from check_unprotected_keys.adapters.reporting import emit_scan_result
 from check_unprotected_keys.config.loader import load_search_configuration
-from check_unprotected_keys.domain.models import ScanRequest
+from check_unprotected_keys.domain.models import ScanRequest, ScanResult
 from check_unprotected_keys.services.scan_service import ScanService
 
 from ..support.fixture_builders import (
@@ -19,7 +19,7 @@ from ..support.fixture_builders import (
 _FILENAME_PATTERNS = ("*.properties", "*.key", "*.pem", "id_*")
 
 
-def _run(root: Path) -> tuple[object, str, str]:
+def _run(root: Path) -> tuple[ScanResult, str, str]:
     configuration = load_search_configuration(root)
     result = ScanService().run(
         ScanRequest(execution_root=root, configuration=configuration)

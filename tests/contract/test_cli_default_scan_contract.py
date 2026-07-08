@@ -73,6 +73,8 @@ def test_default_scan_contract_returns_zero_for_clean_scope(
     assert exit_code == 0
     assert captured.out == ""
     assert "Found 0 violation(s)." in captured.err
+    # Fully readable tree: zero skip warnings (spec 010 US1 scenario 3).
+    assert "WARNING: skipped" not in captured.err
 
 
 def test_default_scan_contract_summarizes_malformed_and_unreadable_files(

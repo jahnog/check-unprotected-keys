@@ -206,6 +206,53 @@ def test_malformed_only_workflow_keeps_stdout_empty(
     )
 
 
+def test_default_scope_golden_output_baseline(tmp_path: Path) -> None:
+    """Golden regression baseline (spec 010 SC-002): exact emitted output.
+
+    Findings order follows filesystem walk order, so stdout is compared as a
+    sorted tuple; the stable stderr framing lines are compared exactly.
+    """
+
+    workspace = create_scan_workspace(tmp_path / "workspace")
+    write_scan_configuration(
+        workspace.root, folder_patterns=("fixtures/default-scope",)
+    )
+
+    try:
+        configuration = load_search_configuration(workspace.root)
+        result = ScanService().run(
+            ScanRequest(execution_root=workspace.root, configuration=configuration)
+        )
+    finally:
+        workspace.restore_permissions()
+
+    stdout = StringIO()
+    stderr = StringIO()
+    emit_scan_result(result, stdout=stdout, stderr=stderr)
+    stdout_lines = nonempty_output_lines(stdout.getvalue())
+    stderr_lines = nonempty_output_lines(stderr.getvalue())
+
+    assert tuple(sorted(stdout_lines)) == tuple(
+        sorted(
+            (
+                str(workspace.unprotected_pem),
+                str(workspace.unprotected_openssh),
+                str(workspace.unprotected_putty),
+            )
+        )
+    )
+    assert stderr_lines[0] == "Checked 5 file(s). Found 3 violation(s)."
+    assert stderr_lines[1] == (
+        "Could not fully evaluate 1 files without detected private keys, "
+        "1 files that could not be read."
+    )
+    assert stderr_lines[2] == str(workspace.malformed_key)
+    assert stderr_lines[-1] == "Issue categories: malformed=1, unreadable=1"
+    for finding_path in stdout_lines:
+        assert f"Recommended protection for {finding_path}:" in stderr_lines
+    assert result.exit_code == 1
+
+
 # -------------------------------------------------------------------
 # Broad discovery tests for 005 (promotion + pruning + rich provenance)
 # -------------------------------------------------------------------

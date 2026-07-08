@@ -24,6 +24,7 @@ def build_assessment(
     *,
     format_hint: str,
     message: str,
+    reason: str | None = None,
 ) -> ProtectionAssessment:
     """Create a typed protection assessment."""
 
@@ -31,6 +32,7 @@ def build_assessment(
         classification=classification,
         format_hint=format_hint,
         message=message,
+        reason=reason,
     )
 
 

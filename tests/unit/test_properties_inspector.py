@@ -138,6 +138,51 @@ def test_unreadable_file_is_flagged(tmp_path: Path) -> None:
     assert result.findings == ()
 
 
+def test_unreadable_resolved_key_reference_is_skipped(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A reference that resolves but cannot be inspected must not be silent."""
+
+    from check_unprotected_keys.adapters import key_parsers
+    from check_unprotected_keys.domain.classification import build_assessment
+    from check_unprotected_keys.domain.models import (
+        ProtectionClassification,
+        SkipPhase,
+    )
+
+    keys = tmp_path / "keys"
+    keys.mkdir()
+    key_file = keys / "server.pem"
+    key_file.write_text("placeholder", encoding="utf-8")
+    props = _write(
+        tmp_path / "app.properties",
+        f"ssl.key.file={key_file}\n",
+    )
+
+    def fake_inspect(path):
+        return build_assessment(
+            ProtectionClassification.UNREADABLE,
+            format_hint="filesystem",
+            message="It was not possible to read the file: PermissionError",
+        )
+
+    monkeypatch.setattr(key_parsers, "inspect_candidate_file", fake_inspect)
+
+    result = inspect_properties_file(
+        props, name_patterns=_PATTERNS, scope=_scope(tmp_path)
+    )
+
+    assert result.findings == ()
+    assert len(result.skipped) == 1
+    skip = result.skipped[0]
+    assert skip.path == key_file.resolve()
+    assert skip.reason == ProtectionClassification.UNREADABLE.value
+    assert skip.phase is SkipPhase.REFERENCE_FOLLOW
+    assert result.assessed_references == (
+        (key_file.resolve(), ProtectionClassification.UNREADABLE),
+    )
+
+
 def test_value_signature_reported_under_non_secret_key(tmp_path: Path) -> None:
     # 'datasource.url' is not a secret-named key, yet the embedded credential is.
     props = _write(
