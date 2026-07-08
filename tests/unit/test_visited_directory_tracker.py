@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from check_unprotected_keys.adapters.filesystem import (
+from check_unprotected_keys.domain.discovery import (
     DirectoryLimitExceededError,
+    DirectoryVisitBudget,
     VisitedDirectoryTracker,
 )
 
@@ -102,3 +103,39 @@ def test_nonexistent_path_raises_oserror(tmp_path):
 def test_visited_count_zero_initially():
     tracker = VisitedDirectoryTracker(limit=10)
     assert tracker.visited_count == 0
+
+
+def test_shared_budget_across_trackers_enforces_single_cap(tmp_path):
+    """Promotion and discovery must share one charge budget (not 2× limit)."""
+
+    dirs = [tmp_path / f"d{i}" for i in range(4)]
+    for d in dirs:
+        d.mkdir()
+
+    budget = DirectoryVisitBudget(limit=3)
+    phase_a = VisitedDirectoryTracker(budget=budget)
+    phase_b = VisitedDirectoryTracker(budget=budget)
+
+    assert phase_a.try_visit(dirs[0]) is True
+    assert phase_a.try_visit(dirs[1]) is True
+    # Same OS identity in the second phase still charges once more only if
+    # the second tracker's cycle set has not seen it — and it hasn't.
+    assert phase_b.try_visit(dirs[0]) is True
+
+    with pytest.raises(DirectoryLimitExceededError) as exc_info:
+        phase_b.try_visit(dirs[2])
+
+    assert budget.used == 3
+    assert exc_info.value.limit == 3
+    assert exc_info.value.path == dirs[2]
+
+
+def test_local_cycle_set_independent_of_shared_budget(tmp_path):
+    budget = DirectoryVisitBudget(limit=10)
+    phase_a = VisitedDirectoryTracker(budget=budget)
+    phase_b = VisitedDirectoryTracker(budget=budget)
+
+    assert phase_a.try_visit(tmp_path) is True
+    assert phase_a.try_visit(tmp_path) is False  # local cycle
+    assert phase_b.try_visit(tmp_path) is True  # new cycle set, charges again
+    assert budget.used == 2

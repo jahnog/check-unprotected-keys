@@ -317,3 +317,42 @@ def test_property_value_ignore_replaces_with_configured_tokens(tmp_path: Path) -
     configuration = load_search_configuration(tmp_path)
 
     assert configuration.property_value_ignore == ("internal-default", "do-not-flag")
+
+
+def test_max_directory_visits_default_is_single_sourced(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """SC-005: the traversal-limit default has exactly one authoritative
+    definition; changing it propagates to the loader and the fallback tracker.
+    """
+
+    from check_unprotected_keys.adapters.filesystem import (
+        DirectoryLimitExceededError,
+        discover_candidate_files,
+    )
+    from check_unprotected_keys.domain import models as domain_models
+    from check_unprotected_keys.domain.scope import build_effective_scope
+
+    monkeypatch.setattr(domain_models, "DEFAULT_MAX_DIRECTORY_VISITS", 1)
+
+    config_path = tmp_path / ".check-unprotected-keys.toml"
+    config_path.write_text(
+        '[scan]\nbase_folders = ["."]\nfilename_patterns = ["id_*"]\n',
+        encoding="utf-8",
+    )
+    configuration = load_search_configuration(tmp_path)
+    assert configuration.max_directory_visits == 1
+
+    # The filesystem fallback tracker reads the same constant: with limit=1,
+    # the second directory it visits raises the limit error.
+    first = tmp_path / "one"
+    second = tmp_path / "two"
+    first.mkdir()
+    second.mkdir()
+    scope = build_effective_scope((first, second), ("id_*",))
+    try:
+        discover_candidate_files(scope)
+    except DirectoryLimitExceededError as error:
+        assert error.limit == 1
+    else:  # pragma: no cover - failure branch
+        raise AssertionError("expected DirectoryLimitExceededError with limit=1")

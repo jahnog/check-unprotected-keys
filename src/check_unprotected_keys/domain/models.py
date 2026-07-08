@@ -27,15 +27,47 @@ class UsageCategory(StrEnum):
     UNKNOWN = "unknown"
 
 
+class SkipPhase(StrEnum):
+    """Scan phases in which a location can be skipped without inspection."""
+
+    SCOPE_RESOLUTION = "scope-resolution"
+    DIRECTORY_PROMOTION = "directory-promotion"
+    CANDIDATE_DISCOVERY = "candidate-discovery"
+    FILE_INSPECTION = "file-inspection"
+    REFERENCE_FOLLOW = "reference-follow"
+
+
+@dataclass(frozen=True, slots=True)
+class SkippedLocation:
+    """A location the scan discovered but could not inspect (FR-001).
+
+    Carries the path, an actionable reason (OS error type or diagnostic slug),
+    and the scan phase — never any file content.
+    """
+
+    path: Path
+    reason: str
+    phase: SkipPhase
+
+
 class CandidateState(StrEnum):
-    """Lifecycle states for a candidate file during a scan."""
+    """Lifecycle states for a candidate file during a scan.
+
+    ``DISCOVERED`` is the initial state; every candidate ends in exactly one of
+    ``REPORTED`` (finding emitted), ``CLASSIFIED`` (malformed, counted but not
+    reported), ``CLEAN``, or ``UNREADABLE``.
+    """
 
     DISCOVERED = "discovered"
     CLASSIFIED = "classified"
     REPORTED = "reported"
     CLEAN = "clean"
-    DUPLICATE_SKIPPED = "duplicate_skipped"
     UNREADABLE = "unreadable"
+
+
+# Single authoritative default for the directory-visit safety cap (FR-009).
+# The config loader and the filesystem adapter's fallback tracker both read it.
+DEFAULT_MAX_DIRECTORY_VISITS = 100_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +89,7 @@ class SearchConfiguration:
     filename_patterns: tuple[str, ...]
     property_name_patterns: tuple[str, ...] = ()
     property_value_ignore: tuple[str, ...] = ()
-    max_directory_visits: int = 100_000
+    max_directory_visits: int = DEFAULT_MAX_DIRECTORY_VISITS
     load_warnings: tuple[str, ...] = ()
 
 
@@ -107,6 +139,8 @@ class ProtectionAssessment:
     classification: ProtectionClassification
     format_hint: str
     message: str
+    # Optional diagnostic slug for skip reporting (e.g. undecodable-content).
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,9 +200,11 @@ class ScanResult:
     files_scanned: int = 0
     findings: list[KeyFinding] = field(default_factory=list)
     malformed_issues: list[MalformedScanIssue] = field(default_factory=list)
+    skipped_locations: list[SkippedLocation] = field(default_factory=list)
     unreadable_count: int = 0
     error_summaries: dict[str, int] = field(default_factory=dict)
     directory_limit_exceeded: bool = False
+    _skipped_paths: set[Path] = field(default_factory=set, repr=False, compare=False)
 
     @property
     def exit_code(self) -> int:
@@ -222,6 +258,14 @@ class ScanResult:
             )
         )
         self.record_issue(ProtectionClassification.MALFORMED.value)
+
+    def record_skip(self, location: SkippedLocation) -> None:
+        """Record one skipped location, deduplicated by path across phases."""
+
+        if location.path in self._skipped_paths:
+            return
+        self._skipped_paths.add(location.path)
+        self.skipped_locations.append(location)
 
     def record_unreadable(self, issue_type: str | None = None) -> None:
         self.unreadable_count += 1

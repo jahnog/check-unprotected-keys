@@ -9,7 +9,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from check_unprotected_keys.config.models import ScanConfigSection
+from check_unprotected_keys.domain import models as domain_models
 from check_unprotected_keys.domain.models import SearchConfiguration
 
 DEFAULT_CONFIG_FILENAME = ".check-unprotected-keys.toml"
@@ -158,7 +158,7 @@ def load_search_configuration(
 
     raw_limit = scan_table.get("max_directory_visits")
     if raw_limit is None:
-        max_directory_visits = 100_000
+        max_directory_visits = domain_models.DEFAULT_MAX_DIRECTORY_VISITS
     elif not isinstance(raw_limit, int) or raw_limit < 1:
         raise ConfigurationError(
             "scan.max_directory_visits must be a positive integer."
@@ -166,8 +166,9 @@ def load_search_configuration(
     else:
         max_directory_visits = raw_limit
 
-    section = ScanConfigSection(
+    return SearchConfiguration(
         config_file_path=config_path,
+        execution_root=root_path,
         base_folders=base_folders,
         directory_names=directory_names,
         ignore_directories=ignore_directories,
@@ -177,20 +178,6 @@ def load_search_configuration(
         property_value_ignore=property_value_ignore,
         max_directory_visits=max_directory_visits,
         load_warnings=tuple(load_warnings),
-    )
-
-    return SearchConfiguration(
-        config_file_path=section.config_file_path,
-        execution_root=root_path,
-        base_folders=section.base_folders,
-        directory_names=section.directory_names,
-        ignore_directories=section.ignore_directories,
-        ignore_filename_patterns=section.ignore_filename_patterns,
-        filename_patterns=section.filename_patterns,
-        property_name_patterns=section.property_name_patterns,
-        property_value_ignore=section.property_value_ignore,
-        max_directory_visits=section.max_directory_visits,
-        load_warnings=section.load_warnings,
     )
 
 
@@ -236,12 +223,32 @@ def _maybe_partial_legacy_ignore_warning(
     )
 
 
-def _validate_patterns(scan_table: dict[str, Any], *, key: str) -> tuple[str, ...]:
+def _validate_pattern_list(
+    scan_table: dict[str, Any], *, key: str, required: bool
+) -> tuple[str, ...]:
+    """Validate a scan.<key> pattern array.
+
+    ``required=True`` rejects a missing or empty array; ``required=False``
+    treats omitted/empty as 'none' (used for hints and ignore lists). Every
+    present item must be a non-blank string.
+    """
+
     value = scan_table.get(key)
 
-    if not isinstance(value, list) or not value:
+    if value is None or (isinstance(value, list) and not value):
+        if required:
+            raise ConfigurationError(
+                f"scan.{key} must be a non-empty array of pattern strings."
+            )
+        return ()
+
+    if not isinstance(value, list):
+        if required:
+            raise ConfigurationError(
+                f"scan.{key} must be a non-empty array of pattern strings."
+            )
         raise ConfigurationError(
-            f"scan.{key} must be a non-empty array of pattern strings."
+            f"scan.{key} must be an array of pattern strings (or omitted/empty)."
         )
 
     patterns: list[str] = []
@@ -257,35 +264,13 @@ def _validate_patterns(scan_table: dict[str, Any], *, key: str) -> tuple[str, ..
         patterns.append(normalized)
 
     return tuple(patterns)
+
+
+def _validate_patterns(scan_table: dict[str, Any], *, key: str) -> tuple[str, ...]:
+    return _validate_pattern_list(scan_table, key=key, required=True)
 
 
 def _validate_optional_patterns(
     scan_table: dict[str, Any], *, key: str
 ) -> tuple[str, ...]:
-    """Like _validate_patterns but allows empty (meaning 'none' for hints/ignores)."""
-    value = scan_table.get(key)
-
-    if value is None:
-        return ()
-
-    if not isinstance(value, list):
-        raise ConfigurationError(
-            f"scan.{key} must be an array of pattern strings (or omitted/empty)."
-        )
-
-    if not value:
-        return ()
-
-    patterns: list[str] = []
-    for index, raw_value in enumerate(value, start=1):
-        if not isinstance(raw_value, str):
-            raise ConfigurationError(f"scan.{key}[{index}] must be a string pattern.")
-
-        normalized = raw_value.strip()
-        if not normalized:
-            raise ConfigurationError(
-                f"scan.{key}[{index}] must not be blank or whitespace-only."
-            )
-        patterns.append(normalized)
-
-    return tuple(patterns)
+    return _validate_pattern_list(scan_table, key=key, required=False)

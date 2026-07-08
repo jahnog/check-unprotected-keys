@@ -69,6 +69,49 @@ def test_start_folder_scan_leaves_filename_patterns_unchanged(tmp_path: Path) ->
     }
 
 
+def test_start_folder_golden_output_baseline(tmp_path: Path) -> None:
+    """Golden regression baseline for a clean narrowed scan (spec 010 SC-002)."""
+
+    workspace = create_start_folder_workspace(tmp_path / "workspace")
+    write_scan_configuration(
+        workspace.root, folder_patterns=("fixtures/default-scope",)
+    )
+    configuration = load_search_configuration(workspace.root)
+
+    result = ScanService().run(
+        ScanRequest(
+            execution_root=workspace.root,
+            configuration=configuration,
+            start_folder=workspace.team_a_root,
+        )
+    )
+
+    stdout = StringIO()
+    stderr = StringIO()
+    emit_scan_result(result, stdout=stdout, stderr=stderr)
+
+    assert nonempty_output_lines(stdout.getvalue()) == (str(workspace.team_a_finding),)
+    assert nonempty_output_lines(stderr.getvalue()) == (
+        "Checked 2 file(s). Found 1 violation(s).",
+        f"Recommended protection for {workspace.team_a_finding}:",
+        "Usage: interactive-user-key",
+        "Method: Passphrase plus session agent",
+        (
+            "Summary: Add a passphrase and load the key into ssh-agent or a "
+            "system keychain once per session."
+        ),
+        (
+            "Why: Interactive SSH workflows can tolerate one unlock per "
+            "login session without repeated prompts."
+        ),
+        (
+            "Next: Re-save the key with a passphrase, then load it once per "
+            "session with ssh-add or your platform keychain."
+        ),
+    )
+    assert result.exit_code == 1
+
+
 def test_start_folder_scan_reports_only_expanded_infra_findings(
     tmp_path: Path,
     monkeypatch,

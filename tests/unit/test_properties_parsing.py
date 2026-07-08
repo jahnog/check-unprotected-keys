@@ -54,3 +54,27 @@ def test_records_one_based_start_line_number() -> None:
 def test_preserves_key_casing() -> None:
     (entry,) = parse_properties("DB.PassWord=x\n")
     assert entry.key == "DB.PassWord"
+
+
+def test_properties_package_preserves_public_api() -> None:
+    """Import-compatibility after the properties package split (spec 010 FR-010)."""
+
+    from check_unprotected_keys.domain import properties
+
+    for name in (
+        "KeyNameTier",
+        "PropertyEntry",
+        "PropertyValueKind",
+        "ValueSignature",
+        "classify_key_tier",
+        "classify_value",
+        "is_credential_like",
+        "is_message_bundle",
+        "is_non_secret_shape",
+        "is_sample_placeholder",
+        "match_value_signature",
+        "parse_properties",
+        "placeholder_default",
+        "tokenize_key",
+    ):
+        assert hasattr(properties, name), f"missing public name: {name}"
