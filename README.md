@@ -28,7 +28,8 @@ Typical uses:
 ## Requirements
 
 - **Python 3.12+**
-- **`uv`** recommended for reproducible install, build, and test runs
+- [`uv`](https://docs.astral.sh/uv/) is recommended for reproducible
+  development, build, and test runs (not required to use the published package)
 
 ## Install
 
@@ -51,6 +52,9 @@ uv sync --extra dev
 ```
 
 Traditional virtualenv alternative: `pip install -e ".[dev]"`.
+
+Standalone PyInstaller executables are built by the release workflow and
+attached as assets to GitHub Releases; see [RELEASE.md](RELEASE.md).
 
 ## Configuration
 
@@ -219,12 +223,12 @@ stdout and stderr ends with:
 NOTE: Partial results above cover the directories visited before the limit.
 ```
 
-## Compile, debug, and test
+## Development
 
 Commands below assume a clone of this repository and `uv sync --extra dev`
 already run from the repo root.
 
-### Compile / build
+### Build
 
 Editable install (run CLI and tests against local `src/`):
 
@@ -308,23 +312,12 @@ uv run python -m pytest tests/contract -q
 uv run --extra dev ruff check .
 uv run --extra dev ruff format --check .
 uv run python -m pyright .
-uv run python -m pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85
+uv run python -m pytest
 ```
 
-## Release validation
-
-See [RELEASE.md](RELEASE.md) for wheel + standalone validation and the GitHub
-Release → PyPI trusted-publishing path. Full local sequence:
-
-```bash
-uv sync --extra dev
-uv run --extra dev ruff check .
-uv run --extra dev ruff format --check .
-uv run python -m pyright .
-uv run python -m pytest --cov=src/check_unprotected_keys --cov-report=term-missing --cov-fail-under=85
-uv run python -m build
-uv run bash scripts/smoke_test_executable.sh
-```
+These are the same checks CI runs. The full release validation sequence
+(including packaging and the standalone smoke test) is documented in
+[RELEASE.md](RELEASE.md).
 
 ## Fixtures
 
@@ -334,9 +327,17 @@ Reusable trees under `tests/fixtures/`:
 - `tests/fixtures/protected-only` — passphrase-protected material
 - `tests/fixtures/properties_corpus` — properties detection corpus
 
-End-to-end scenarios: [specs/001-check-unprotected-keys/quickstart.md](specs/001-check-unprotected-keys/quickstart.md).
+Design notes and end-to-end validation scenarios for each feature live under
+`specs/` (for example
+[specs/001-check-unprotected-keys/quickstart.md](specs/001-check-unprotected-keys/quickstart.md)).
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Keep PRs scoped; do not commit generated
 `build/`, `dist/`, caches, or machine-local `.check-unprotected-keys.toml`.
+Release history is tracked in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+Released under the [MIT License](LICENSE).
+
