@@ -36,24 +36,68 @@ __all__ = [
 _logger = logging.getLogger(__name__)
 
 
+def _is_path_ignore_entry(entry: str) -> bool:
+    """True when an ignore entry names one directory instead of a basename."""
+
+    return "/" in entry or entry.startswith("~")
+
+
+def _compile_directory_ignores(
+    ignore_set: frozenset[str],
+) -> tuple[frozenset[str], frozenset[Path]]:
+    """Split basename ignores from path ignores.
+
+    Path entries (contain ``/`` or start with ``~``) are tilde-expanded and
+    resolved once per walk. Basename entries stay exact name matches.
+    """
+
+    names: set[str] = set()
+    paths: set[Path] = set()
+    for entry in ignore_set:
+        if _is_path_ignore_entry(entry):
+            path = Path(entry).expanduser()
+            if not path.is_absolute():
+                path = Path.cwd() / path
+            # Keep both forms: os.walk reports the path it was given, while
+            # resolve() follows symlinks along that path.
+            paths.add(path.absolute())
+            paths.add(path.resolve(strict=False))
+        else:
+            names.add(entry)
+    return frozenset(names), frozenset(paths)
+
+
+def _path_matches_ignore(path: Path, ignore_paths: frozenset[Path]) -> bool:
+    return any(path.is_relative_to(ignored) for ignored in ignore_paths)
+
+
 def _prune_with_visit_check(
     dirnames: list[str],
     current_path: Path,
-    ignore_set: frozenset[str],
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[Path],
     tracker: VisitedDirectoryTracker,
     issues: list[DiscoveryIssue] | None = None,
     *,
     phase: SkipPhase = SkipPhase.CANDIDATE_DISCOVERY,
-) -> None:
+) -> bool:
     """Mutate dirnames in-place: remove ignored, already-visited, or inaccessible dirs.
 
-    Raises DirectoryLimitExceededError if the tracker cap is hit.
+    Returns True when ``current_path`` itself lies in an ignored path, so the
+    caller must not read or promote it. Raises DirectoryLimitExceededError if
+    the tracker cap is hit.
     """
+    if ignore_paths and _path_matches_ignore(current_path, ignore_paths):
+        dirnames[:] = []
+        return True
+
     safe: list[str] = []
     for name in dirnames:
-        if name in ignore_set:
+        if name in ignore_names:
             continue
         sub = current_path / name
+        if ignore_paths and _path_matches_ignore(sub, ignore_paths):
+            continue
         try:
             if tracker.try_visit(sub):
                 safe.append(name)
@@ -72,6 +116,7 @@ def _prune_with_visit_check(
                     )
                 )
     dirnames[:] = safe
+    return False
 
 
 def resolve_effective_scope(
@@ -181,6 +226,9 @@ def _walk_candidate_roots(
     seen_paths: set[Path],
 ) -> None:
     discovery_phase = SkipPhase.CANDIDATE_DISCOVERY
+    ignore_names, ignore_paths = _compile_directory_ignores(
+        scope.ignore_directories or frozenset()
+    )
     for root_directory in scope.root_directories:
         # Mark root as visited; skip if already entered in this discovery pass.
         try:
@@ -215,7 +263,6 @@ def _walk_candidate_roots(
                 )
             )
 
-        ignore_set = scope.ignore_directories or frozenset()
         for current_root, dirnames, file_names in os.walk(
             root_directory,
             topdown=True,
@@ -223,14 +270,16 @@ def _walk_candidate_roots(
             followlinks=True,
         ):
             current_path = Path(current_root)
-            _prune_with_visit_check(
+            if _prune_with_visit_check(
                 dirnames,
                 current_path,
-                ignore_set,
+                ignore_names,
+                ignore_paths,
                 tracker,
                 issues,
                 phase=discovery_phase,
-            )
+            ):
+                continue
 
             for file_name in file_names:
                 if scope.ignore_filename_patterns and _match_filename_pattern(
@@ -365,6 +414,7 @@ def _discover_promoted_directories(
             )
 
     hint_set = set(directory_names)
+    basename_ignores, path_ignores = _compile_directory_ignores(ignore_names)
     promoted: list[Path] = []
     seen: set[Path] = set()
     sub_provenance: dict[Path, str] = {}
@@ -393,14 +443,16 @@ def _discover_promoted_directories(
             base, topdown=True, onerror=_on_walk_error, followlinks=True
         ):
             current = Path(dirpath)
-            _prune_with_visit_check(
+            if _prune_with_visit_check(
                 dirnames,
                 current,
-                ignore_names,
+                basename_ignores,
+                path_ignores,
                 visited_tracker,
                 issues,
                 phase=promotion_phase,
-            )
+            ):
+                continue
 
             # Check if this dir itself is a hinted one (but not the base root itself
             # unless it matches, which is already included via bases)

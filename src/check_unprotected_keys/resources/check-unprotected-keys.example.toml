@@ -8,6 +8,9 @@
 #   These are automatically discovered (promoted) at any depth under your base_folders.
 #
 # ignore_directories: basenames of directories never descended into (exact match).
+#   An entry that contains "/" or starts with "~" is one directory path
+#   (tilde-expanded). Only that directory is pruned, not every directory
+#   with the same basename.
 #   Omit this key to use the packaged default list below.
 #   Set to [] to disable all directory pruning.
 #   When present with entries, ONLY those names apply (replace semantics).
@@ -95,7 +98,7 @@ ignore_filename_patterns = [
   "*.whl", "*.egg", "Cargo.lock", "go.sum",
 ]
 
-# max_directory_visits = 100000
+# max_directory_visits = 200000
 
 filename_patterns = [
   "id_*",

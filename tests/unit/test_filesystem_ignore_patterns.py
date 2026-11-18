@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from check_unprotected_keys.adapters.filesystem import (
     DiscoveryIssue,
     discover_candidate_files,
@@ -29,6 +31,86 @@ def test_ignore_filename_pattern_skips_overlap_before_inclusion(tmp_path: Path) 
     names = {c.canonical_path.name for c in candidates}
 
     assert names == {"id_rsa"}
+
+
+def test_path_ignore_prunes_only_that_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A path ignore skips one directory, including under a promoted parent.
+
+    Another directory with the same basename stays visible. A ``~`` entry
+    expands against HOME.
+    """
+
+    home = tmp_path / "home"
+    ignored = home / ".local" / "share" / "docker" / "containerd" / "daemon"
+    ignored_secret = ignored / "secrets"
+    ignored_secret.mkdir(parents=True)
+    (ignored / "id_ed25519").write_text("hidden", encoding="utf-8")
+    (ignored_secret / "id_rsa").write_text("hidden", encoding="utf-8")
+
+    other = home / "work" / "daemon"
+    other.mkdir(parents=True)
+    (other / "id_rsa").write_text("keep", encoding="utf-8")
+
+    kept_hint = home / "work" / "secrets"
+    kept_hint.mkdir()
+    (kept_hint / "id_rsa").write_text("keep", encoding="utf-8")
+
+    monkeypatch.setenv("HOME", str(home))
+    configuration = SearchConfiguration(
+        config_file_path=tmp_path / ".check-unprotected-keys.toml",
+        execution_root=tmp_path,
+        base_folders=(str(home),),
+        directory_names=("secrets", "docker"),
+        ignore_directories=("~/.local/share/docker/containerd/daemon",),
+        ignore_filename_patterns=(),
+        filename_patterns=("id_*",),
+    )
+
+    scope = resolve_effective_scope(configuration, start_folder=None)
+    roots = set(scope.root_directories)
+    assert kept_hint.resolve() in roots
+    assert ignored_secret.resolve() not in roots
+
+    candidates, _issues = discover_candidate_files(scope)
+    found = {candidate.canonical_path for candidate in candidates}
+    assert (other / "id_rsa").resolve() in found
+    assert (kept_hint / "id_rsa").resolve() in found
+    assert (ignored / "id_ed25519").resolve() not in found
+    assert (ignored_secret / "id_rsa").resolve() not in found
+
+
+def test_relative_path_ignore_skips_that_root_and_its_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A relative path ignore is cwd-based, including when it is the walk root."""
+
+    root = tmp_path / "project"
+    ignored = root / "containerd" / "daemon"
+    ignored.mkdir(parents=True)
+    (ignored / "id_rsa").write_text("hidden", encoding="utf-8")
+    (root / "id_rsa").write_text("keep", encoding="utf-8")
+    monkeypatch.chdir(root)
+
+    configuration = SearchConfiguration(
+        config_file_path=root / ".check-unprotected-keys.toml",
+        execution_root=root,
+        base_folders=(".", "containerd/daemon"),
+        directory_names=(),
+        ignore_directories=("containerd/daemon",),
+        ignore_filename_patterns=(),
+        filename_patterns=("id_*",),
+    )
+
+    scope = resolve_effective_scope(configuration, start_folder=None)
+    candidates, _issues = discover_candidate_files(scope)
+    found = {candidate.canonical_path for candidate in candidates}
+
+    assert (root / "id_rsa").resolve() in found
+    assert (ignored / "id_rsa").resolve() not in found
 
 
 def test_empty_ignore_filename_patterns_allows_overlap_candidates(

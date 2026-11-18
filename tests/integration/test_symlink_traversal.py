@@ -22,7 +22,7 @@ def _make_config(
     tmp_path: Path,
     *,
     base_folders: tuple[str, ...],
-    max_directory_visits: int = 100_000,
+    max_directory_visits: int = 200_000,
 ) -> SearchConfiguration:
     return SearchConfiguration(
         config_file_path=_DUMMY_CONFIG,

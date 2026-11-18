@@ -67,7 +67,7 @@ class CandidateState(StrEnum):
 
 # Single authoritative default for the directory-visit safety cap (FR-009).
 # The config loader and the filesystem adapter's fallback tracker both read it.
-DEFAULT_MAX_DIRECTORY_VISITS = 100_000
+DEFAULT_MAX_DIRECTORY_VISITS = 200_000
 
 
 @dataclass(frozen=True, slots=True)

@@ -78,11 +78,11 @@ All keys live under the `[scan]` table.
 | `folder_patterns` | Legacy | Accepted when `base_folders` is absent. Treated as bases. Bare names (no `/`, no globs) are also promoted into `directory_names` for broader discovery. Prefer `base_folders` + `directory_names` for new configs. |
 | `directory_names` | No | Exact basenames of directories to **promote** at any depth under active bases (e.g. `secrets`, `.ssh`, `deploy`). Empty list disables promotion. If omitted with a legacy `folder_patterns` config, bare names from that list become hints; otherwise defaults to no extra hints unless set. |
 | `filename_patterns` | Yes | Basename globs (`fnmatch`) for candidate files under any effective root (base or promoted). Unchanged by `--start-folder`. |
-| `ignore_directories` | No | Exact basenames never descended into (VCS, `node_modules`, caches, …). **Omit** → packaged defaults. **`[]`** → disable directory pruning. **Non-empty** → replace defaults entirely (copy packaged list and add your entries to extend). |
+| `ignore_directories` | No | Exact basenames never descended into (VCS, `node_modules`, caches, …). An entry that contains `/` or starts with `~` is one directory path (tilde-expanded); only that directory is pruned. **Omit** → packaged defaults. **`[]`** → disable directory pruning. **Non-empty** → replace defaults entirely (copy packaged list and add your entries to extend). |
 | `ignore_filename_patterns` | No | Basename globs skipped before assessment (ignore wins over `filename_patterns`). Same omit / `[]` / replace semantics as `ignore_directories`. |
 | `property_name_patterns` | No | Token-aware secret name fragments for `*.properties` keys (`password`, `token`, …). Same omit / `[]` / replace semantics. |
 | `property_value_ignore` | No | Extra exact property values (case-insensitive) always treated as benign. Omit or `[]` → none; non-empty replaces. |
-| `max_directory_visits` | No | Hard cap on distinct directories visited in one scan (default `100000`). When hit, partial findings already collected are still emitted, then the process exits `2`. |
+| `max_directory_visits` | No | Hard cap on distinct directories visited in one scan (default `200000`). When hit, partial findings already collected are still emitted, then the process exits `2`. |
 
 \* New-style configs must define `base_folders` (or legacy `folder_patterns`) and `filename_patterns`.
 
@@ -105,7 +105,7 @@ filename_patterns = [
 # ignore_directories = [...]
 # ignore_filename_patterns = [...]
 # property_name_patterns = [...]
-# max_directory_visits = 100000
+# max_directory_visits = 200000
 ```
 
 ### How discovery works
