@@ -31,8 +31,14 @@ def emit_scan_result(
         if not _has_partial_content(result):
             return
 
+    if result.findings:
+        _print_section_header(
+            f"VIOLATIONS FOUND ({len(result.findings)})", stderr_stream
+        )
     for finding in result.findings:
         print(finding.output_line, file=stdout_stream)
+    # Keep the stdout paths ahead of the stderr sections on a shared terminal.
+    stdout_stream.flush()
 
     print(
         (
@@ -42,12 +48,11 @@ def emit_scan_result(
         file=stderr_stream,
     )
 
-    _emit_issue_summary(result, stderr_stream)
-    _emit_malformed_paths(result, stderr_stream)
-    _emit_skipped_locations(result, stderr_stream)
+    _emit_undecided_section(result, stderr_stream)
     _emit_remediation_guidance(result, stderr_stream)
 
     if result.safe_issue_breakdown:
+        print("", file=stderr_stream)
         print(
             "Issue categories: " + ", ".join(result.safe_issue_breakdown),
             file=stderr_stream,
@@ -68,6 +73,30 @@ def _has_partial_content(result: ScanResult) -> bool:
         or result.malformed_issues
         or result.skipped_locations
     )
+
+
+def _print_section_header(title: str, stream: TextIO) -> None:
+    print(f"=== {title} ===", file=stream)
+
+
+def _emit_undecided_section(result: ScanResult, stderr_stream: TextIO) -> None:
+    if not (
+        result.malformed_count
+        or result.unreadable_count
+        or result.malformed_issues
+        or result.skipped_locations
+    ):
+        return
+
+    print("", file=stderr_stream)
+    undecided = result.malformed_count + result.unreadable_count
+    _print_section_header(
+        f"UNABLE TO DECIDE ({undecided})" if undecided else "UNABLE TO DECIDE",
+        stderr_stream,
+    )
+    _emit_issue_summary(result, stderr_stream)
+    _emit_malformed_paths(result, stderr_stream)
+    _emit_skipped_locations(result, stderr_stream)
 
 
 def _emit_skipped_locations(result: ScanResult, stderr_stream: TextIO) -> None:
@@ -101,9 +130,15 @@ def _emit_malformed_paths(result: ScanResult, stderr_stream: TextIO) -> None:
 
 
 def _emit_remediation_guidance(result: ScanResult, stderr_stream: TextIO) -> None:
-    for finding in result.findings:
-        if finding.remediation is None:
-            continue
+    findings = [f for f in result.findings if f.remediation is not None]
+    if not findings:
+        return
+
+    print("", file=stderr_stream)
+    _print_section_header(f"RECOMMENDATIONS ({len(findings)})", stderr_stream)
+    for index, finding in enumerate(findings):
+        if index:
+            print("", file=stderr_stream)
         for line in _render_recommendation_lines(finding):
             print(line, file=stderr_stream)
 

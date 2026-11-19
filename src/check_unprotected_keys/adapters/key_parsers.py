@@ -21,7 +21,9 @@ from cryptography.hazmat.primitives import serialization
 
 from check_unprotected_keys.adapters.openpgp import (
     inspect_private_key_block,
+    inspect_public_key_block,
     matches_private_key_block,
+    matches_public_key_block,
 )
 from check_unprotected_keys.domain.classification import (
     build_assessment,
@@ -51,6 +53,8 @@ PEM_PUBLIC_KEY_HEADERS = (
 )
 CERTIFICATE_HEADER = b"-----BEGIN CERTIFICATE-----"
 OPENSSH_PUBLIC_KEY_PREFIXES = (b"ssh-", b"ecdsa-", b"sk-")
+# No recognizer matched. Distinct from a key blob that failed to parse.
+NO_KEY_MATERIAL_REASON = "no-key-material"
 
 
 def inspect_candidate_file(candidate_path: Path) -> ProtectionAssessment:
@@ -71,6 +75,7 @@ def inspect_candidate_file(candidate_path: Path) -> ProtectionAssessment:
             ProtectionClassification.MALFORMED,
             format_hint="unknown",
             message=f"No private keys were detected in {candidate_path.name}.",
+            reason=NO_KEY_MATERIAL_REASON,
         )
     return select_file_assessment(assessments)
 
@@ -346,5 +351,10 @@ KEY_RECOGNIZERS: tuple[KeyRecognizer, ...] = (
         name="openpgp-private",
         matches=matches_private_key_block,
         inspect=inspect_private_key_block,
+    ),
+    KeyRecognizer(
+        name="openpgp-public",
+        matches=matches_public_key_block,
+        inspect=inspect_public_key_block,
     ),
 )

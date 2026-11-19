@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from check_unprotected_keys.adapters.key_parsers import (
+    NO_KEY_MATERIAL_REASON,
     inspect_candidate_file,
     inspect_text_for_key_material,
 )
@@ -204,6 +205,22 @@ def test_unrecognized_content_is_malformed(tmp_path: Path) -> None:
     path.write_text("nothing key-like in here\n", encoding="utf-8")
     assessment = inspect_candidate_file(path)
     assert assessment.classification == ProtectionClassification.MALFORMED
+    assert assessment.reason == NO_KEY_MATERIAL_REASON
+    assert "No private keys were detected" in assessment.message
+
+
+def test_environment_file_without_a_private_key_has_no_key_material(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "local.env"
+    path.write_text(
+        "DEPLOY_HOST=deploy.example\nDEPLOY_USER=deploy\nDEPLOY_DIR=/srv/app\n",
+        encoding="utf-8",
+    )
+    assessment = inspect_candidate_file(path)
+    assert assessment.classification == ProtectionClassification.MALFORMED
+    assert assessment.format_hint == "unknown"
+    assert assessment.reason == NO_KEY_MATERIAL_REASON
     assert "No private keys were detected" in assessment.message
 
 

@@ -15,6 +15,7 @@ from ..support.fixture_builders import write_pem_private_key
 
 _PRIVATE_HEADER = "-----BEGIN PGP PRIVATE KEY BLOCK-----"
 _SECRET_HEADER = "-----BEGIN PGP SECRET KEY BLOCK-----"
+_PUBLIC_HEADER = "-----BEGIN PGP PUBLIC KEY BLOCK-----"
 _RFC4880_ARMOR_BODY = (
     "yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzSvBSFjNSiVHsuAA=="
 )
@@ -49,6 +50,27 @@ def _packet(tag: int, body: bytes) -> bytes:
     else:
         header = bytes([marker, 255]) + length.to_bytes(4, "big")
     return header + body
+
+
+def _old_packet(tag: int, body: bytes, *, length_octets: int | None = None) -> bytes:
+    """Build an RFC 4880 old-format packet.
+
+    ``length_octets`` forces the length field width. GnuPG picks the shortest
+    definite field that fits; pass 4 to exercise a four-octet header on a
+    small body.
+    """
+
+    length = len(body)
+    if length_octets is None:
+        if length < 256:
+            length_octets = 1
+        elif length < 65536:
+            length_octets = 2
+        else:
+            length_octets = 4
+    length_type = {1: 0, 2: 1, 4: 2}[length_octets]
+    marker = 0x80 | (tag << 2) | length_type
+    return bytes([marker]) + length.to_bytes(length_octets, "big") + body
 
 
 def _iterated_s2k_tail(*, extra: bytes = b"") -> bytes:
@@ -120,6 +142,88 @@ def test_cleartext_v4_rsa_secret_key_is_unprotected(tmp_path: Path) -> None:
     assert assessment.message == "OpenPGP private key is not protected."
 
 
+def test_old_format_encrypted_v4_rsa_secret_key_is_protected(tmp_path: Path) -> None:
+    # Pad past 255 octets so the old-format header uses a two-octet length,
+    # matching GnuPG secret-key exports such as a 2048-bit RSA packet.
+    body = _rsa_secret_body(_USAGE_SHA1, _iterated_s2k_tail(extra=b"\x22" * 240))
+    assert 256 <= len(body) < 65536
+    path = _write(tmp_path, "secret.asc", _armor(_old_packet(5, body)))
+    assessment = inspect_candidate_file(path)
+    assert (
+        assessment.classification == ProtectionClassification.PROTECTED_WITH_PASSPHRASE
+    )
+    assert assessment.format_hint == "openpgp"
+    assert assessment.message == "OpenPGP private key is protected with a passphrase."
+
+
+def test_old_format_cleartext_v4_rsa_secret_key_is_unprotected(tmp_path: Path) -> None:
+    body = _rsa_secret_body(0, b"\x01\x02\x03")
+    assert len(body) < 256
+    path = _write(tmp_path, "secret.asc", _armor(_old_packet(5, body)))
+    assert _classify(path) == ProtectionClassification.UNPROTECTED
+
+
+def test_old_format_four_octet_length_is_protected(tmp_path: Path) -> None:
+    body = _rsa_secret_body(_USAGE_SHA1, _iterated_s2k_tail())
+    path = _write(
+        tmp_path,
+        "secret.asc",
+        _armor(_old_packet(5, body, length_octets=4)),
+    )
+    assert _classify(path) == ProtectionClassification.PROTECTED_WITH_PASSPHRASE
+
+
+def test_old_format_indeterminate_length_is_malformed(tmp_path: Path) -> None:
+    # Tag 5 with length type 3. The following octet is not a length field.
+    packet = bytes([0x80 | (5 << 2) | 3, 0x00])
+    path = _write(tmp_path, "secret.asc", _armor(packet))
+    assert _classify(path) == ProtectionClassification.MALFORMED
+
+
+def test_old_format_public_key_is_public_only(tmp_path: Path) -> None:
+    packet = _old_packet(6, b"\x04" + (b"\x00" * 8))
+    path = _write(tmp_path, "public.key", _armor(packet, begin=_PUBLIC_HEADER))
+    assessment = inspect_candidate_file(path)
+    assert assessment.classification == ProtectionClassification.PUBLIC_ONLY
+    assert assessment.format_hint == "openpgp"
+    assert assessment.message == "OpenPGP file contains only public key material."
+
+
+def test_new_format_public_subkey_is_public_only(tmp_path: Path) -> None:
+    packet = _packet(14, b"\x04" + (b"\x00" * 8))
+    path = _write(tmp_path, "public.key", _armor(packet, begin=_PUBLIC_HEADER))
+    assert _classify(path) == ProtectionClassification.PUBLIC_ONLY
+
+
+def test_public_header_with_encrypted_secret_is_protected(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "public.key",
+        _armor(_encrypted_packet(), begin=_PUBLIC_HEADER),
+    )
+    assert _classify(path) == ProtectionClassification.PROTECTED_WITH_PASSPHRASE
+
+
+def test_public_header_bad_crc_is_malformed(tmp_path: Path) -> None:
+    packet = _old_packet(6, b"\x04" + (b"\x00" * 8))
+    path = _write(
+        tmp_path,
+        "public.key",
+        _armor(packet, begin=_PUBLIC_HEADER, valid_crc=False),
+    )
+    assessment = inspect_candidate_file(path)
+    assert assessment.classification == ProtectionClassification.MALFORMED
+    assert assessment.message == "OpenPGP public key could not be parsed."
+
+
+def test_public_header_without_key_packet_is_malformed(tmp_path: Path) -> None:
+    packet = _packet(13, b"user")
+    path = _write(tmp_path, "public.key", _armor(packet, begin=_PUBLIC_HEADER))
+    assessment = inspect_candidate_file(path)
+    assert assessment.classification == ProtectionClassification.MALFORMED
+    assert assessment.message == "OpenPGP public key could not be parsed."
+
+
 def test_cleartext_packet_outranks_encrypted_packet(tmp_path: Path) -> None:
     packets = _encrypted_packet() + _packet(7, _rsa_secret_body(0, b"\x01\x02"))
     path = _write(tmp_path, "secret.asc", _armor(packets))
@@ -182,6 +286,8 @@ def test_blank_body_line_is_ignored(tmp_path: Path) -> None:
     "packets",
     [
         b"\x94\x01\x00",
+        b"\x01\x00",
+        bytes([0x80 | (5 << 2) | 1]),
         bytes([0xC5, 224]),
         bytes([0xC5]),
         bytes([0xC5, 192]),

@@ -5,9 +5,20 @@ from __future__ import annotations
 import stat
 from pathlib import Path
 
-from check_unprotected_keys.adapters.key_parsers import inspect_candidate_file
+from check_unprotected_keys.adapters.key_parsers import (
+    NO_KEY_MATERIAL_REASON,
+    inspect_candidate_file,
+)
 from check_unprotected_keys.domain.classification import is_finding
-from check_unprotected_keys.domain.models import ProtectionClassification
+from check_unprotected_keys.domain.models import (
+    CandidateFile,
+    CandidateState,
+    EffectiveScope,
+    ProtectionClassification,
+    ScanRequest,
+    SearchConfiguration,
+)
+from check_unprotected_keys.services.scan_service import ScanService
 
 from ..support.fixture_builders import (
     create_expanded_noise_workspace,
@@ -92,6 +103,54 @@ def test_public_key_file_is_classified_as_public_only(tmp_path: Path) -> None:
 
     assert assessment.classification == ProtectionClassification.PUBLIC_ONLY
     assert not is_finding(assessment)
+
+
+def test_simple_environment_file_without_a_private_key_is_clean(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / "deploy" / "local.env"
+    env_file.parent.mkdir()
+    env_file.write_text(
+        "DEPLOY_HOST=deploy.example\nDEPLOY_USER=deploy\nDEPLOY_DIR=/srv/app\n",
+        encoding="utf-8",
+    )
+    candidate = CandidateFile(
+        canonical_path=env_file,
+        display_path=str(env_file),
+        matched_folder_pattern=f"base:{tmp_path}",
+        matched_filename_pattern="*.env",
+    )
+
+    def resolver(configuration, *, start_folder, visited_tracker=None, issues=None):
+        return EffectiveScope(
+            root_directories=(tmp_path,),
+            filename_patterns=("*.env",),
+            canonical_root_set=frozenset({tmp_path}),
+        )
+
+    def discoverer(scope, *, visited_tracker=None):
+        return [candidate], []
+
+    configuration = SearchConfiguration(
+        config_file_path=tmp_path / ".check-unprotected-keys.toml",
+        execution_root=tmp_path,
+        base_folders=(".",),
+        directory_names=(),
+        ignore_directories=(),
+        ignore_filename_patterns=(),
+        filename_patterns=("*.env",),
+    )
+    result = ScanService(
+        scope_resolver=resolver,
+        candidate_discoverer=discoverer,
+    ).run(ScanRequest(execution_root=tmp_path, configuration=configuration))
+
+    assert inspect_candidate_file(env_file).reason == NO_KEY_MATERIAL_REASON
+    assert result.findings == []
+    assert result.malformed_count == 0
+    assert result.files_scanned == 1
+    assert result.exit_code == 0
+    assert candidate.state is CandidateState.CLEAN
 
 
 def test_embedded_private_key_block_is_detected_inside_env_file(tmp_path: Path) -> None:

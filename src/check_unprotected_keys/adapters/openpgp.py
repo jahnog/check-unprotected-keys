@@ -1,9 +1,14 @@
-"""Classify passphrase protection of an OpenPGP secret-key armor block.
+"""Classify OpenPGP armored key blocks.
 
-Only version-4 RSA secret-key and secret-subkey packets are read, and only
-far enough to reach the string-to-key usage octet (RFC 4880). Any other
-shape is uncertain. The block is malformed unless one of its secret packets
-is cleartext.
+Old-format and new-format packet headers (RFC 4880) are both read. Secret
+blocks are classified from version-4 RSA secret-key and secret-subkey
+packets, and only far enough to reach the string-to-key usage octet. Any
+other secret shape is uncertain. A secret block is malformed unless one of
+its secret packets is cleartext.
+
+A public-key block is public-only when it frames at least one public-key or
+public-subkey packet and no secret packet. A secret packet under a public
+header is classified as a secret key.
 """
 
 from __future__ import annotations
@@ -19,12 +24,20 @@ from check_unprotected_keys.domain.models import (
     ProtectionClassification,
 )
 
-_BEGIN_HEADERS = (
+_PRIVATE_BEGIN_HEADERS = (
     "-----BEGIN PGP PRIVATE KEY BLOCK-----",
     "-----BEGIN PGP SECRET KEY BLOCK-----",
 )
-_BEGIN_HEADER_BYTES = tuple(header.encode("ascii") for header in _BEGIN_HEADERS)
+_PUBLIC_BEGIN_HEADERS = ("-----BEGIN PGP PUBLIC KEY BLOCK-----",)
+_BEGIN_HEADERS = _PRIVATE_BEGIN_HEADERS + _PUBLIC_BEGIN_HEADERS
+_PRIVATE_BEGIN_HEADER_BYTES = tuple(
+    header.encode("ascii") for header in _PRIVATE_BEGIN_HEADERS
+)
+_PUBLIC_BEGIN_HEADER_BYTES = tuple(
+    header.encode("ascii") for header in _PUBLIC_BEGIN_HEADERS
+)
 _SECRET_PACKET_TAGS = frozenset({5, 7})
+_PUBLIC_PACKET_TAGS = frozenset({6, 14})
 _RSA_ALGORITHMS = frozenset({1, 2, 3})
 _RSA_PUBLIC_MPI_COUNT = 2
 # Specifier size in octets, including the type byte.
@@ -40,7 +53,13 @@ SecretState = Literal["cleartext", "encrypted", "uncertain"]
 def matches_private_key_block(blob: bytes) -> bool:
     """Return whether ``blob`` starts an OpenPGP secret-key armor block."""
 
-    return blob.startswith(_BEGIN_HEADER_BYTES)
+    return blob.startswith(_PRIVATE_BEGIN_HEADER_BYTES)
+
+
+def matches_public_key_block(blob: bytes) -> bool:
+    """Return whether ``blob`` starts an OpenPGP public-key armor block."""
+
+    return blob.startswith(_PUBLIC_BEGIN_HEADER_BYTES)
 
 
 def inspect_private_key_block(payload: bytes) -> ProtectionAssessment:
@@ -51,6 +70,31 @@ def inspect_private_key_block(payload: bytes) -> ProtectionAssessment:
     except (ValueError, UnicodeError, binascii.Error):
         return _malformed()
     return _assess_states(states)
+
+
+def inspect_public_key_block(payload: bytes) -> ProtectionAssessment:
+    """Classify one OpenPGP public-key armor block.
+
+    A secret packet inside the block is classified as a secret key so the
+    public header cannot hide unprotected key material.
+    """
+
+    try:
+        raw = _decode_armor(payload)
+        states = _secret_states(raw)
+        has_public_packet = any(
+            tag in _PUBLIC_PACKET_TAGS for tag, _body in _iter_packets(raw)
+        )
+    except (ValueError, UnicodeError, binascii.Error):
+        return _public_malformed()
+    if states:
+        return _assess_states(states)
+    if has_public_packet:
+        return _assessment(
+            ProtectionClassification.PUBLIC_ONLY,
+            "OpenPGP file contains only public key material.",
+        )
+    return _public_malformed()
 
 
 def _assess_states(states: list[SecretState]) -> ProtectionAssessment:
@@ -84,6 +128,13 @@ def _malformed() -> ProtectionAssessment:
     return _assessment(
         ProtectionClassification.MALFORMED,
         "OpenPGP private key could not be parsed.",
+    )
+
+
+def _public_malformed() -> ProtectionAssessment:
+    return _assessment(
+        ProtectionClassification.MALFORMED,
+        "OpenPGP public key could not be parsed.",
     )
 
 
@@ -154,17 +205,42 @@ def _iter_packets(data: bytes) -> Iterator[tuple[int, bytes]]:
     while offset < total:
         ctb = data[offset]
         offset += 1
-        if ctb & 0xC0 != 0xC0:
-            raise ValueError("packet header is not new-format")
-        tag = ctb & 0x3F
-        if offset >= total:
-            raise ValueError("packet length is truncated")
-        length, offset = _read_packet_length(data, offset)
+        if ctb & 0x80 == 0:
+            raise ValueError("packet header is not a packet")
+        if ctb & 0x40:
+            tag = ctb & 0x3F
+            if offset >= total:
+                raise ValueError("packet length is truncated")
+            length, offset = _read_packet_length(data, offset)
+        else:
+            tag = (ctb >> 2) & 0x0F
+            length, offset = _read_old_packet_length(data, offset, ctb & 0x03)
         end = offset + length
         if end > total:
             raise ValueError("packet extends past the armor body")
         yield tag, data[offset:end]
         offset = end
+
+
+def _read_old_packet_length(
+    data: bytes,
+    offset: int,
+    length_type: int,
+) -> tuple[int, int]:
+    """Read an RFC 4880 old-format definite packet length."""
+
+    if length_type == 0:
+        octet_count = 1
+    elif length_type == 1:
+        octet_count = 2
+    elif length_type == 2:
+        octet_count = 4
+    else:
+        raise ValueError("indeterminate packet length is not supported")
+    end = offset + octet_count
+    if end > len(data):
+        raise ValueError("packet length is truncated")
+    return int.from_bytes(data[offset:end], "big"), end
 
 
 def _read_packet_length(data: bytes, offset: int) -> tuple[int, int]:
