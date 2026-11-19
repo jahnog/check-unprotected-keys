@@ -15,6 +15,7 @@ from ..support.fixture_builders import write_pem_private_key
 
 _PRIVATE_HEADER = "-----BEGIN PGP PRIVATE KEY BLOCK-----"
 _SECRET_HEADER = "-----BEGIN PGP SECRET KEY BLOCK-----"
+_PUBLIC_HEADER = "-----BEGIN PGP PUBLIC KEY BLOCK-----"
 _RFC4880_ARMOR_BODY = (
     "yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzSvBSFjNSiVHsuAA=="
 )
@@ -177,6 +178,50 @@ def test_old_format_indeterminate_length_is_malformed(tmp_path: Path) -> None:
     packet = bytes([0x80 | (5 << 2) | 3, 0x00])
     path = _write(tmp_path, "secret.asc", _armor(packet))
     assert _classify(path) == ProtectionClassification.MALFORMED
+
+
+def test_old_format_public_key_is_public_only(tmp_path: Path) -> None:
+    packet = _old_packet(6, b"\x04" + (b"\x00" * 8))
+    path = _write(tmp_path, "public.key", _armor(packet, begin=_PUBLIC_HEADER))
+    assessment = inspect_candidate_file(path)
+    assert assessment.classification == ProtectionClassification.PUBLIC_ONLY
+    assert assessment.format_hint == "openpgp"
+    assert assessment.message == "OpenPGP file contains only public key material."
+
+
+def test_new_format_public_subkey_is_public_only(tmp_path: Path) -> None:
+    packet = _packet(14, b"\x04" + (b"\x00" * 8))
+    path = _write(tmp_path, "public.key", _armor(packet, begin=_PUBLIC_HEADER))
+    assert _classify(path) == ProtectionClassification.PUBLIC_ONLY
+
+
+def test_public_header_with_encrypted_secret_is_protected(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "public.key",
+        _armor(_encrypted_packet(), begin=_PUBLIC_HEADER),
+    )
+    assert _classify(path) == ProtectionClassification.PROTECTED_WITH_PASSPHRASE
+
+
+def test_public_header_bad_crc_is_malformed(tmp_path: Path) -> None:
+    packet = _old_packet(6, b"\x04" + (b"\x00" * 8))
+    path = _write(
+        tmp_path,
+        "public.key",
+        _armor(packet, begin=_PUBLIC_HEADER, valid_crc=False),
+    )
+    assessment = inspect_candidate_file(path)
+    assert assessment.classification == ProtectionClassification.MALFORMED
+    assert assessment.message == "OpenPGP public key could not be parsed."
+
+
+def test_public_header_without_key_packet_is_malformed(tmp_path: Path) -> None:
+    packet = _packet(13, b"user")
+    path = _write(tmp_path, "public.key", _armor(packet, begin=_PUBLIC_HEADER))
+    assessment = inspect_candidate_file(path)
+    assert assessment.classification == ProtectionClassification.MALFORMED
+    assert assessment.message == "OpenPGP public key could not be parsed."
 
 
 def test_cleartext_packet_outranks_encrypted_packet(tmp_path: Path) -> None:
