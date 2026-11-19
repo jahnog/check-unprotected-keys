@@ -8,10 +8,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from check_unprotected_keys.adapters.filesystem import (
     DirectoryLimitExceededError,
     DiscoveryIssue,
 )
+from check_unprotected_keys.adapters.key_parsers import NO_KEY_MATERIAL_REASON
 from check_unprotected_keys.adapters.properties_inspector import (
     PropertyFinding,
     PropertyFindingOrigin,
@@ -55,13 +58,13 @@ def _scope() -> EffectiveScope:
     )
 
 
-def _candidate(name: str) -> CandidateFile:
+def _candidate(name: str, *, matched_filename_pattern: str = "id_*") -> CandidateFile:
     path = _ROOT / name
     return CandidateFile(
         canonical_path=path,
         display_path=str(path),
         matched_folder_pattern=f"base:{_ROOT}",
-        matched_filename_pattern="id_*",
+        matched_filename_pattern=matched_filename_pattern,
     )
 
 
@@ -160,6 +163,7 @@ def test_malformed_candidate_is_counted_and_classified() -> None:
             ProtectionClassification.MALFORMED,
             format_hint="unknown",
             message="No private keys were detected.",
+            reason=NO_KEY_MATERIAL_REASON,
         )
 
     result = _service(candidates=[candidate], key_inspector=key_inspector).run(
@@ -170,6 +174,65 @@ def test_malformed_candidate_is_counted_and_classified() -> None:
     assert result.malformed_count == 1
     assert candidate.state is CandidateState.CLASSIFIED
     assert result.exit_code == 0
+
+
+@pytest.mark.parametrize(
+    "name",
+    [".env", ".env.local", "local.env", "production.env.local"],
+)
+def test_keyless_environment_file_is_clean(name: str) -> None:
+    candidate = _candidate(name, matched_filename_pattern="*.env")
+
+    def key_inspector(candidate_path: Path):
+        return build_assessment(
+            ProtectionClassification.MALFORMED,
+            format_hint="unknown",
+            message=f"No private keys were detected in {name}.",
+            reason=NO_KEY_MATERIAL_REASON,
+        )
+
+    result = _service(candidates=[candidate], key_inspector=key_inspector).run(
+        _request()
+    )
+
+    assert result.findings == []
+    assert result.malformed_count == 0
+    assert result.files_scanned == 1
+    assert result.exit_code == 0
+    assert candidate.state is CandidateState.CLEAN
+
+
+def test_unprotected_key_inside_environment_file_is_still_a_finding() -> None:
+    candidate = _candidate("service.env", matched_filename_pattern="*.env")
+
+    result = _service(candidates=[candidate]).run(_request())
+
+    assert result.malformed_count == 0
+    assert result.files_scanned == 1
+    assert [finding.file_path for finding in result.findings] == [
+        str(_ROOT / "service.env")
+    ]
+    assert candidate.state is CandidateState.REPORTED
+    assert result.exit_code == 1
+
+
+def test_broken_key_inside_environment_file_stays_malformed() -> None:
+    candidate = _candidate("service.env", matched_filename_pattern="*.env")
+
+    def key_inspector(candidate_path: Path):
+        return build_assessment(
+            ProtectionClassification.MALFORMED,
+            format_hint="pem",
+            message="PEM private key could not be parsed.",
+        )
+
+    result = _service(candidates=[candidate], key_inspector=key_inspector).run(
+        _request()
+    )
+
+    assert result.findings == []
+    assert result.malformed_count == 1
+    assert candidate.state is CandidateState.CLASSIFIED
 
 
 def test_unreadable_candidate_records_skip_with_file_inspection_phase() -> None:

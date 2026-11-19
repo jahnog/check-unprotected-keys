@@ -53,6 +53,8 @@ PEM_PUBLIC_KEY_HEADERS = (
 )
 CERTIFICATE_HEADER = b"-----BEGIN CERTIFICATE-----"
 OPENSSH_PUBLIC_KEY_PREFIXES = (b"ssh-", b"ecdsa-", b"sk-")
+# No recognizer matched. Distinct from a key blob that failed to parse.
+NO_KEY_MATERIAL_REASON = "no-key-material"
 
 
 def inspect_candidate_file(candidate_path: Path) -> ProtectionAssessment:
@@ -73,6 +75,7 @@ def inspect_candidate_file(candidate_path: Path) -> ProtectionAssessment:
             ProtectionClassification.MALFORMED,
             format_hint="unknown",
             message=f"No private keys were detected in {candidate_path.name}.",
+            reason=NO_KEY_MATERIAL_REASON,
         )
     return select_file_assessment(assessments)
 

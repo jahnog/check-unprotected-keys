@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -39,6 +40,22 @@ from check_unprotected_keys.services.ports import (
 # registry (FR-005); these names stay importable from here for compatibility.
 infer_usage_category = remediation_registry.infer_usage_category
 build_remediation_recommendation = remediation_registry.build_remediation_recommendation
+
+# Environment files are candidates because they may embed a private key.
+# No embedded key is a clean result, not a malformed key file.
+_ENVIRONMENT_FILE_PATTERNS = (
+    ".env",
+    ".env.*",
+    "*.env",
+    "*.env.*",
+)
+
+
+def _is_environment_file(path: Path) -> bool:
+    """Return whether ``path`` is an environment file scanned for embedded keys."""
+
+    name = path.name
+    return any(fnmatch.fnmatch(name, pattern) for pattern in _ENVIRONMENT_FILE_PATTERNS)
 
 
 @dataclass(slots=True)
@@ -144,12 +161,20 @@ class ScanService:
                 continue
 
             if assessment.classification == ProtectionClassification.MALFORMED:
-                result.record_malformed(
-                    file_path=candidate.display_path,
-                    matched_folder_pattern=candidate.matched_folder_pattern,
-                    matched_filename_pattern=candidate.matched_filename_pattern,
-                )
-                candidate.state = CandidateState.CLASSIFIED
+                # A key file with no recognizable key stays malformed. An
+                # environment file is only in scope in case it embeds one.
+                if (
+                    assessment.reason == key_parsers.NO_KEY_MATERIAL_REASON
+                    and _is_environment_file(candidate.canonical_path)
+                ):
+                    candidate.state = CandidateState.CLEAN
+                else:
+                    result.record_malformed(
+                        file_path=candidate.display_path,
+                        matched_folder_pattern=candidate.matched_folder_pattern,
+                        matched_filename_pattern=candidate.matched_filename_pattern,
+                    )
+                    candidate.state = CandidateState.CLASSIFIED
             elif assessment.classification == ProtectionClassification.UNREADABLE:
                 skip_reason = (
                     assessment.reason or ProtectionClassification.UNREADABLE.value
