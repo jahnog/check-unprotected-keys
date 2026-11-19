@@ -1,9 +1,10 @@
 """Classify passphrase protection of an OpenPGP secret-key armor block.
 
-Only version-4 RSA secret-key and secret-subkey packets are read, and only
-far enough to reach the string-to-key usage octet (RFC 4880). Any other
-shape is uncertain. The block is malformed unless one of its secret packets
-is cleartext.
+Old-format and new-format packet headers (RFC 4880) are both read. Only
+version-4 RSA secret-key and secret-subkey packets are classified, and only
+far enough to reach the string-to-key usage octet. Any other shape is
+uncertain. The block is malformed unless one of its secret packets is
+cleartext.
 """
 
 from __future__ import annotations
@@ -154,17 +155,42 @@ def _iter_packets(data: bytes) -> Iterator[tuple[int, bytes]]:
     while offset < total:
         ctb = data[offset]
         offset += 1
-        if ctb & 0xC0 != 0xC0:
-            raise ValueError("packet header is not new-format")
-        tag = ctb & 0x3F
-        if offset >= total:
-            raise ValueError("packet length is truncated")
-        length, offset = _read_packet_length(data, offset)
+        if ctb & 0x80 == 0:
+            raise ValueError("packet header is not a packet")
+        if ctb & 0x40:
+            tag = ctb & 0x3F
+            if offset >= total:
+                raise ValueError("packet length is truncated")
+            length, offset = _read_packet_length(data, offset)
+        else:
+            tag = (ctb >> 2) & 0x0F
+            length, offset = _read_old_packet_length(data, offset, ctb & 0x03)
         end = offset + length
         if end > total:
             raise ValueError("packet extends past the armor body")
         yield tag, data[offset:end]
         offset = end
+
+
+def _read_old_packet_length(
+    data: bytes,
+    offset: int,
+    length_type: int,
+) -> tuple[int, int]:
+    """Read an RFC 4880 old-format definite packet length."""
+
+    if length_type == 0:
+        octet_count = 1
+    elif length_type == 1:
+        octet_count = 2
+    elif length_type == 2:
+        octet_count = 4
+    else:
+        raise ValueError("indeterminate packet length is not supported")
+    end = offset + octet_count
+    if end > len(data):
+        raise ValueError("packet length is truncated")
+    return int.from_bytes(data[offset:end], "big"), end
 
 
 def _read_packet_length(data: bytes, offset: int) -> tuple[int, int]:
