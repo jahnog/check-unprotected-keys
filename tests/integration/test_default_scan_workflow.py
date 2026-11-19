@@ -200,6 +200,7 @@ def test_malformed_only_workflow_keeps_stdout_empty(
     assert stdout.getvalue() == ""
     assert nonempty_output_lines(stderr.getvalue()) == (
         "Checked 1 file(s). Found 0 violation(s).",
+        "=== UNABLE TO DECIDE (1) ===",
         "Could not fully evaluate 1 files without detected private keys.",
         str(workspace.malformed_key),
         "Issue categories: malformed=1",
@@ -241,12 +242,15 @@ def test_default_scope_golden_output_baseline(tmp_path: Path) -> None:
             )
         )
     )
-    assert stderr_lines[0] == "Checked 5 file(s). Found 3 violation(s)."
-    assert stderr_lines[1] == (
+    assert stderr_lines[0] == "=== VIOLATIONS FOUND (3) ==="
+    assert stderr_lines[1] == "Checked 5 file(s). Found 3 violation(s)."
+    assert stderr_lines[2] == "=== UNABLE TO DECIDE (2) ==="
+    assert stderr_lines[3] == (
         "Could not fully evaluate 1 files without detected private keys, "
         "1 files that could not be read."
     )
-    assert stderr_lines[2] == str(workspace.malformed_key)
+    assert stderr_lines[4] == str(workspace.malformed_key)
+    assert "=== RECOMMENDATIONS (3) ===" in stderr_lines
     assert stderr_lines[-1] == "Issue categories: malformed=1, unreadable=1"
     for finding_path in stdout_lines:
         assert f"Recommended protection for {finding_path}:" in stderr_lines

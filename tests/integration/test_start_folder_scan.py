@@ -92,7 +92,9 @@ def test_start_folder_golden_output_baseline(tmp_path: Path) -> None:
 
     assert nonempty_output_lines(stdout.getvalue()) == (str(workspace.team_a_finding),)
     assert nonempty_output_lines(stderr.getvalue()) == (
+        "=== VIOLATIONS FOUND (1) ===",
         "Checked 2 file(s). Found 1 violation(s).",
+        "=== RECOMMENDATIONS (1) ===",
         f"Recommended protection for {workspace.team_a_finding}:",
         "Usage: interactive-user-key",
         "Method: Passphrase plus session agent",
