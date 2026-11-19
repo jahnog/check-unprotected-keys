@@ -15,7 +15,7 @@ repositories for material that should not sit on disk unprotected:
 | Finds | Does not find |
 | --- | --- |
 | Private keys with no passphrase (or an empty one) | Public-only artifacts (`*.pub`, `known_hosts`, …) |
-| Supported formats: PEM, OpenSSH, PuTTY, and key blocks embedded in matched text files | Generic API-token hunting across arbitrary file types |
+| Supported formats: PEM, OpenSSH, PuTTY, OpenPGP armored secret keys, and key blocks embedded in matched text files | Generic API-token hunting across arbitrary file types |
 | Secret-named or signature-matched credentials in `*.properties` | Certificate-only outputs (`*.crt`, `*.csr`, …) |
 | Unprotected key files referenced from `.properties` paths | Unsupported keystores (`*.p12`, `*.jks`, …) |
 

@@ -40,6 +40,18 @@ from check_unprotected_keys.domain.properties import (
             "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0uv",
             ValueSignature.HIGH_ENTROPY_BLOB,
         ),
+        (
+            "A1b2C3d4/E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0",
+            ValueSignature.HIGH_ENTROPY_BLOB,
+        ),
+        (
+            "ab/cdefghijklmnopqrstuvwxyzABCDEF",
+            ValueSignature.HIGH_ENTROPY_BLOB,
+        ),
+        (
+            "ab/cdefghijklmnopqrstuvwxyzABCD+EF",
+            ValueSignature.HIGH_ENTROPY_BLOB,
+        ),
     ],
 )
 def test_signatures_match(value: str, expected: ValueSignature) -> None:
@@ -58,6 +70,10 @@ def test_signatures_match(value: str, expected: ValueSignature) -> None:
         "ghp_short",
         "hello world",
         "",
+        "/home/javier/Android/MagicAliveKids",
+        "/mnt/hdd-1000/javier/Proyectos/Portafolio",
+        "src/main/java/com/example/MagicAliveKids",
+        "/" * 40,
     ],
 )
 def test_non_signatures_return_none(value: str) -> None:

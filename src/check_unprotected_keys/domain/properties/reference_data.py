@@ -19,6 +19,15 @@ MIN_WEAK_ENTROPY = 3.0
 # ordinary identifiers and hashes while catching random base64/base64url secrets.
 BLOB_MIN_LENGTH = 32
 BLOB_MIN_ENTROPY = 4.0
+# Word-like path components, used only so a filesystem path is not that blob.
+# Tuned against directory names versus random base64 fragments: a short or
+# repetitive component stays under the any-class cap (``hdd-1000`` ≈ 2.16, and
+# any identifier of length ≤ 6 has entropy ≤ log2(6) ≈ 2.58); a camelCase
+# directory name stays under the two-class cap (``CheckUnprotectedKeys`` ≈ 3.72,
+# ``AndroidStudioProjects`` ≈ 3.65) while a random mixed-case fragment of the
+# same length sits near or above it.
+PATH_SEGMENT_ANY_CLASS_MAX_ENTROPY = 2.8
+PATH_SEGMENT_TWO_CLASS_MAX_ENTROPY = 4.15
 
 # Value suffixes that signal a path to key material (used for PATH_LIKE).
 KEY_FILE_SUFFIXES = (".pem", ".key", ".ppk", ".p8", ".pk8", ".ovpn", ".tfvars")

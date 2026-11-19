@@ -183,6 +183,37 @@ def test_unreadable_resolved_key_reference_is_skipped(
     )
 
 
+def test_filesystem_path_under_benign_key_is_not_a_finding(tmp_path: Path) -> None:
+    props = _write(
+        tmp_path / "project.properties",
+        "projectPath=/home/javier/Android/MagicAliveKids\n",
+    )
+
+    result = inspect_properties_file(
+        props, name_patterns=_PATTERNS, scope=_scope(tmp_path)
+    )
+
+    assert result.findings == ()
+
+
+def test_wordlike_path_to_unprotected_key_is_followed(tmp_path: Path) -> None:
+    key_path = tmp_path / "src/main/java/com/example/MagicAliveKids"
+    key_path.parent.mkdir(parents=True)
+    write_pem_private_key(key_path, encrypted=False)
+    props = _write(
+        tmp_path / "app.properties",
+        "app.secret=src/main/java/com/example/MagicAliveKids\n",
+    )
+
+    result = inspect_properties_file(
+        props, name_patterns=_PATTERNS, scope=_scope(tmp_path)
+    )
+
+    assert [(f.property_key, f.origin) for f in result.findings] == [
+        ("app.secret", PropertyFindingOrigin.REFERENCED_KEY_FILE)
+    ]
+
+
 def test_value_signature_reported_under_non_secret_key(tmp_path: Path) -> None:
     # 'datasource.url' is not a secret-named key, yet the embedded credential is.
     props = _write(

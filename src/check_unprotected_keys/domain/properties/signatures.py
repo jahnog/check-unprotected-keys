@@ -8,6 +8,8 @@ from enum import StrEnum
 from check_unprotected_keys.domain.properties.reference_data import (
     BLOB_MIN_ENTROPY,
     BLOB_MIN_LENGTH,
+    PATH_SEGMENT_ANY_CLASS_MAX_ENTROPY,
+    PATH_SEGMENT_TWO_CLASS_MAX_ENTROPY,
 )
 from check_unprotected_keys.domain.properties.shapes import shannon_entropy
 
@@ -80,6 +82,15 @@ _EMBEDDED_CREDENTIAL_URL = re.compile(
     r"[A-Za-z][A-Za-z0-9+.\-]*://[^/\s:@]+:([^/\s:@]+)@"
 )
 _BLOB_CHARS = re.compile(r"^[A-Za-z0-9+/_=-]+$")
+_PATH_SEPARATORS = re.compile(r"[/\\]")
+_PATH_COMPONENT = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+_PATH_COMPONENT_CLASSES = (
+    re.compile(r"[a-z]"),
+    re.compile(r"[A-Z]"),
+    re.compile(r"[0-9]"),
+    re.compile(r"[+_=-]"),
+)
+_IGNORED_PATH_COMPONENTS = frozenset({"", ".", ".."})
 
 
 def match_value_signature(value: str) -> ValueSignature | None:
@@ -108,6 +119,8 @@ def match_value_signature(value: str) -> ValueSignature | None:
 def _looks_like_high_entropy_blob(value: str) -> bool:
     if len(value) < BLOB_MIN_LENGTH or not _BLOB_CHARS.match(value):
         return False
+    if _is_wordlike_filesystem_path(value):
+        return False
     classes = sum(
         bool(re.search(pattern, value))
         for pattern in (r"[a-z]", r"[A-Z]", r"[0-9]", r"[+/_=-]")
@@ -115,3 +128,35 @@ def _looks_like_high_entropy_blob(value: str) -> bool:
     if classes < 3:
         return False
     return shannon_entropy(value) >= BLOB_MIN_ENTROPY
+
+
+def _is_wordlike_filesystem_path(value: str) -> bool:
+    """Return whether ``value`` is a path of word-like directory components.
+
+    Private to the blob check. A component that contains ``+`` or ``=`` fails
+    the identifier pattern, so a base64 token that uses those characters stays
+    eligible for the blob signature.
+    """
+
+    if "/" not in value and "\\" not in value:
+        return False
+    components = [
+        part
+        for part in _PATH_SEPARATORS.split(value)
+        if part not in _IGNORED_PATH_COMPONENTS
+    ]
+    if len(components) < 2:
+        return False
+    return all(_is_wordlike_path_component(part) for part in components)
+
+
+def _is_wordlike_path_component(component: str) -> bool:
+    if _PATH_COMPONENT.fullmatch(component) is None:
+        return False
+    entropy = shannon_entropy(component)
+    if entropy < PATH_SEGMENT_ANY_CLASS_MAX_ENTROPY:
+        return True
+    class_count = sum(
+        pattern.search(component) is not None for pattern in _PATH_COMPONENT_CLASSES
+    )
+    return class_count <= 2 and entropy < PATH_SEGMENT_TWO_CLASS_MAX_ENTROPY

@@ -91,6 +91,18 @@ MUST_NOT_FLAG: tuple[tuple[str, str, str], ...] = (
     # URLs/hosts without embedded credentials.
     ("oauth.token.uri", "https://auth.example.com/token", "bare URL, no credential"),
     ("redis.url", "redis://cache.internal:6379", "bare URL, no credential"),
+    # Filesystem paths are not blob secrets. An absolute path is outside the
+    # accuracy harness scope, so a strong key follows it and still reports nothing.
+    (
+        "projectPath",
+        "/home/javier/Android/MagicAliveKids",
+        "benign key, filesystem path",
+    ),
+    (
+        "db.password",
+        "/mnt/hdd-1000/javier/Proyectos/Portafolio",
+        "strong key, filesystem path outside scope",
+    ),
     # Public material.
     (
         "tls.cert",

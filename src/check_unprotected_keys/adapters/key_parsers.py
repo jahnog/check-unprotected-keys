@@ -19,6 +19,10 @@ from pathlib import Path
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 
+from check_unprotected_keys.adapters.openpgp import (
+    inspect_private_key_block,
+    matches_private_key_block,
+)
 from check_unprotected_keys.domain.classification import (
     build_assessment,
     select_file_assessment,
@@ -337,5 +341,10 @@ KEY_RECOGNIZERS: tuple[KeyRecognizer, ...] = (
         name="certificate",
         matches=lambda blob: blob.startswith(CERTIFICATE_HEADER),
         inspect=_inspect_certificate,
+    ),
+    KeyRecognizer(
+        name="openpgp-private",
+        matches=matches_private_key_block,
+        inspect=inspect_private_key_block,
     ),
 )

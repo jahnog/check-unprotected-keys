@@ -40,6 +40,8 @@ Value matches a curated signature (AWS/GitHub/GitLab/Slack/Google/Stripe/Twilio/
 SendGrid/npm/OpenAI token, JWT, embedded-credential URL `scheme://user:pw@` with a
 non-placeholder `pw`, or a high-entropy base64/hex blob ≥ 32 chars, entropy ≥ 4.0,
 ≥ 3 char classes) → **finding** (`origin=VALUE_SIGNATURE`). Key name ignored.
+A slash-separated filesystem path of word-like components is not a high-entropy
+blob.
 
 ### 3.2b Message-bundle short-circuit (FR-015)
 

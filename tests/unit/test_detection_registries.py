@@ -37,6 +37,7 @@ _EXPECTED_RECOGNIZER_ORDER = (
     "pem-public",
     "openssh-public",
     "certificate",
+    "openpgp-private",
 )
 
 
